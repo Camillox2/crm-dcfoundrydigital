@@ -1,0 +1,60 @@
+name: Deploy VPS (CRM)
+
+# Auto-deploy of main to srv2062669 (/opt/dcfoundry-crm) via a forced-command SSH key.
+# DISABLED until the repository variable CRM_AUTODEPLOY_ENABLED is set to 'true'
+# (Settings > Secrets and variables > Actions > Variables). The VPS script also refuses
+# to deploy a main that does not contain the commit currently running in production.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'check (read-only guard) | deploy | force'
+        required: false
+        default: check
+
+concurrency:
+  group: deploy-vps-crm
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Auto-deploy gate
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          if [ "${{ vars.CRM_AUTODEPLOY_ENABLED }}" != "true" ]; then
+            echo "::notice::CRM auto-deploy is disabled (vars.CRM_AUTODEPLOY_ENABLED != 'true'). Nothing deployed."
+          fi
+
+  deploy:
+    name: Deploy CRM on srv2062669
+    needs: gate
+    if: vars.CRM_AUTODEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Configure SSH (pinned host key)
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
+      - name: Run /usr/local/bin/deploy-dcf-crm.sh (forced command)
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          MODE: ${{ github.event.inputs.mode || 'deploy' }}
+        run: |
+          case "$MODE" in deploy|check|force) ;; *) echo "invalid mode"; exit 2;; esac
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 "root@${VPS_HOST}" "$MODE"
+      - name: Cleanup key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
