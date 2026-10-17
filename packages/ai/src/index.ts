@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { maskPiiForLlm } from '@dcfoundry/shared';
+export * from './foundry.js';
 
 // ============================================================================
 // 1. HORÁRIO COMERCIAL E FERIADOS (SEÇÃO 5.3)

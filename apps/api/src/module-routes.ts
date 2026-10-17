@@ -16,6 +16,7 @@ import { requirePermission, requireSession } from './plugins/auth.js';
 import { ModuleStore, WorkspaceError } from './module-store.js';
 import { publicPost, publishedSql, flushBlogOutbox } from './blog-publishing.js';
 import { askGemini } from './assistant-provider.js';
+import { loadFoundryContext, type FoundryGenerate } from './foundry-engine.js';
 
 type Database = () => Promise<DatabaseConnectionResult> | null;
 const uuid = z.string().uuid();
@@ -24,7 +25,11 @@ const writeInput = z.object({
   leadId: uuid.nullable().optional(),
   version: z.number().int().positive().optional(),
 });
-export async function registerModuleRoutes(app: FastifyInstance, database: Database) {
+export async function registerModuleRoutes(
+  app: FastifyInstance,
+  database: Database,
+  generate: FoundryGenerate = askGemini,
+) {
   const repo = async () => {
     const db = await database();
     if (!db)
@@ -155,8 +160,8 @@ export async function registerModuleRoutes(app: FastifyInstance, database: Datab
     adsIngest: Boolean(process.env.CRM_ADS_INGEST_TOKEN),
     siteEvents: Boolean(
       process.env.CRM_SITE_INGEST_TOKEN &&
-        process.env.CRM_SITE_INGEST_TOKEN.length >= 32 &&
-        uuid.safeParse(process.env.CRM_SITE_OWNER_ID).success,
+      process.env.CRM_SITE_INGEST_TOKEN.length >= 32 &&
+      uuid.safeParse(process.env.CRM_SITE_OWNER_ID).success,
     ),
     siteUrl: process.env.CRM_SITE_URL ?? 'https://dcfoundrydigital.com',
     whatsapp: 'manual',
@@ -217,14 +222,8 @@ export async function registerModuleRoutes(app: FastifyInstance, database: Datab
         teamId: req.authUser!.teamId ?? null,
         scope: resolveGrantedScope(req.authUser!.roles, 'ai_agent:read')!,
       };
-      const [knowledge, config] = await Promise.all([
-        store.list('knowledge', a),
-        store.list('assistant', a),
-      ]);
-      const context = [...config.items, ...knowledge.items]
-        .map((i) => JSON.stringify(i.data))
-        .join('\n');
-      const result = await askGemini(input.message, context);
+      const { context } = await loadFoundryContext(store.pool, 'internal');
+      const result = await generate(input.message, context);
       await store.save(
         'conversation',
         { ...a, scope: 'own' },

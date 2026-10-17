@@ -11,6 +11,7 @@
     "bootstrap-admin": "tsx src/bootstrap-admin.ts"
   },
   "dependencies": {
+    "@dcfoundry/ai": "workspace:^",
     "@dcfoundry/db": "workspace:*",
     "@dcfoundry/shared": "workspace:*",
     "@fastify/cookie": "^11.0.2",

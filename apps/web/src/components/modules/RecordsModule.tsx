@@ -247,9 +247,15 @@ const definitions: Record<
     fields: [
       { key: 'title', label: 'Título', required: true },
       { key: 'category', label: 'Categoria' },
+      {
+        key: 'audience',
+        label: 'Público (public: clientes e equipe; internal: só equipe)',
+        type: 'select',
+        options: ['public', 'internal'],
+      },
       { key: 'content', label: 'Conteúdo', type: 'textarea', required: true },
     ],
-    defaults: () => ({ title: '', category: 'Empresa', content: '' }),
+    defaults: () => ({ title: '', category: 'Empresa', content: '', audience: 'public' }),
   },
   assistant: {
     label: 'Configurar Foundry',

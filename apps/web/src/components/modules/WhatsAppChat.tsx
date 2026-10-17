@@ -7,6 +7,7 @@ import { useCrmApi } from './useModule.js';
 import { ContactAvatar } from '../ContactAvatar.js';
 import { WhatsAppConnection, type Session } from './WhatsAppConnection.js';
 import { RecordsModule } from './RecordsModule.js';
+import { LeadFoundry } from './FoundryControls.js';
 type ChatMessage = {
   id: string;
   body: string;
@@ -310,6 +311,7 @@ export function WhatsAppChatWorkspace({
                     Abrir no aplicativo ↗
                   </a>
                 </header>
+                <LeadFoundry user={user} leadId={contact.id} />
                 <div className="wa-message-list" ref={list} aria-label="Mensagens da conversa">
                   <button
                     className="text-button"

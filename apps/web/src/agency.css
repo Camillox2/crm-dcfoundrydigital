@@ -49,6 +49,81 @@
   gap: 18px;
   min-height: 600px;
 }
+.foundry-control-banner {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.foundry-control-banner > div {
+  flex: 1;
+  min-width: 230px;
+}
+.foundry-lab-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+.foundry-lab-grid article {
+  padding: 18px;
+  border: 1px solid var(--border, #dce4ec);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+}
+.foundry-lab-grid p {
+  flex: 1;
+}
+.foundry-lab-result {
+  margin-top: 20px;
+  padding: 20px;
+  border-left: 3px solid #246ba5;
+  background: #246ba507;
+}
+.foundry-lead-control {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border, #dce4ec);
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.foundry-lead-control details {
+  flex: 1;
+  min-width: 180px;
+}
+.foundry-lead-control summary {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+  font-size: 12px;
+  min-height: 36px;
+}
+.foundry-lead-control dl {
+  display: grid;
+  gap: 9px;
+  font-size: 12px;
+}
+.foundry-lead-control dl div {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 12px;
+}
+.foundry-lead-control dt {
+  opacity: 0.65;
+}
+.foundry-lead-control dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.foundry-lead-summary {
+  white-space: pre-wrap;
+  max-width: 620px;
+}
 .wa-chat-contacts {
   min-width: 0;
 }

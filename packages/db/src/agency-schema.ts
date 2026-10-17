@@ -19,6 +19,17 @@ export const workspaceLeads = pgTable('workspace_leads', {
   name: varchar('name', { length: 180 }).notNull(),
   company: varchar('company', { length: 180 }).notNull(),
   phone: varchar('phone', { length: 24 }).notNull(),
+  projectType: varchar('project_type', { length: 32 }),
+  objective: text('objective'),
+  budgetCents: bigint('budget_cents', { mode: 'number' }),
+  deadlineText: varchar('deadline_text', { length: 300 }),
+  decisionMaker: varchar('decision_maker', { length: 180 }),
+  urgency: varchar('urgency', { length: 24 }),
+  aiPaused: boolean('ai_paused').notNull().default(false),
+  aiControlRevision: integer('ai_control_revision').notNull().default(1),
+  handoffReason: varchar('handoff_reason', { length: 180 }),
+  aiSummary: text('ai_summary'),
+  aiSummaryAt: timestamp('ai_summary_at', { withTimezone: true }),
 });
 export const waSessions = pgTable('wa_sessions', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -90,6 +101,10 @@ export const whatsappCommands = pgTable('wa_commands', {
     .references(() => waSessions.id),
   generation: integer('generation').notNull(),
   commandType: varchar('command_type', { length: 24 }).notNull(),
+  leadId: uuid('lead_id').references(() => workspaceLeads.id),
+  aiRevision: integer('ai_revision'),
+  handoffAck: boolean('handoff_ack').notNull().default(false),
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
   phone: varchar('phone', { length: 24 }),
   messageId: uuid('message_id').references(() => whatsappMessages.id),
   jid: varchar('jid', { length: 160 }),
@@ -121,5 +136,90 @@ export const whatsappMediaUploads = pgTable('wa_media_uploads', {
   fileName: varchar('file_name', { length: 180 }).notNull(),
   mediaType: varchar('media_type', { length: 16 }).notNull(),
   bytes: integer('bytes').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+const foundryRecord = () => ({
+  id: uuid('id').defaultRandom().primaryKey(),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
+  title: varchar('title', { length: 180 }).notNull(),
+  version: integer('version').notNull().default(1),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const foundryKnowledge = pgTable('foundry_knowledge', {
+  ...foundryRecord(),
+  content: text('content').notNull(),
+  category: varchar('category', { length: 180 }).notNull(),
+  audience: varchar('audience', { length: 16 }).notNull().default('public'),
+});
+export const foundryGuidance = pgTable('foundry_guidance', {
+  ...foundryRecord(),
+  instructions: text('instructions').notNull(),
+  tone: varchar('tone', { length: 16 }).notNull(),
+});
+export const foundryKnowledgeVersions = pgTable('foundry_knowledge_versions', {
+  documentId: uuid('document_id')
+    .notNull()
+    .references(() => foundryKnowledge.id),
+  version: integer('version').notNull(),
+  title: varchar('title', { length: 180 }).notNull(),
+  content: text('content').notNull(),
+  category: varchar('category', { length: 180 }).notNull(),
+  audience: varchar('audience', { length: 16 }).notNull(),
+  actorId: uuid('actor_id')
+    .notNull()
+    .references(() => users.id),
+  savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const foundryGuidanceVersions = pgTable('foundry_guidance_versions', {
+  documentId: uuid('document_id')
+    .notNull()
+    .references(() => foundryGuidance.id),
+  version: integer('version').notNull(),
+  title: varchar('title', { length: 180 }).notNull(),
+  instructions: text('instructions').notNull(),
+  tone: varchar('tone', { length: 16 }).notNull(),
+  actorId: uuid('actor_id')
+    .notNull()
+    .references(() => users.id),
+  savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const foundrySettings = pgTable('foundry_settings', {
+  singleton: boolean('singleton').primaryKey().default(true),
+  whatsappEnabled: boolean('whatsapp_enabled').notNull().default(false),
+  version: integer('version').notNull().default(1),
+  updatedBy: uuid('updated_by').references(() => users.id),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const foundryTurns = pgTable('foundry_turns', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  messageId: uuid('message_id')
+    .notNull()
+    .unique()
+    .references(() => whatsappMessages.id),
+  leadId: uuid('lead_id')
+    .notNull()
+    .references(() => workspaceLeads.id),
+  controlRevision: integer('control_revision').notNull(),
+  state: varchar('state', { length: 24 }).notNull().default('processing'),
+  answer: text('answer'),
+  model: varchar('model', { length: 120 }),
+  handoff: boolean('handoff').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+});
+export const foundryLabRuns = pgTable('foundry_lab_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  actorId: uuid('actor_id')
+    .notNull()
+    .references(() => users.id),
+  scenarioSlug: varchar('scenario_slug', { length: 80 }).notNull(),
+  answer: text('answer').notNull(),
+  model: varchar('model', { length: 120 }).notNull(),
+  handoff: boolean('handoff').notNull(),
+  passed: boolean('passed').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

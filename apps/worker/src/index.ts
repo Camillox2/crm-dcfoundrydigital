@@ -41,7 +41,34 @@ const manager = createSessionManager({
       (content, type) => downloadContentFromMessage(content, type as 'image'),
       uploads,
     ),
-  onCommand: (command, socket) => executeLiveCommand(command, socket, emit, uploads, photos),
+  onCommand: async (command, socket) => {
+    if (command.actorType === 'foundry') {
+      const [enabled, raw] = await Promise.all([
+        producer.get('dc-wa-ai-enabled'),
+        producer.hget('dc-wa-ai-controls', command.leadId ?? ''),
+      ]);
+      const control = raw ? JSON.parse(raw) : null;
+      if (
+        enabled !== '1' ||
+        !control ||
+        control.revision !== command.aiRevision ||
+        (control.paused && !command.handoffAck)
+      ) {
+        if (command.messageId)
+          await emit({
+            id: randomUUID(),
+            sessionId: command.sessionId,
+            generation: command.generation,
+            type: 'receipt',
+            jid: command.jid,
+            externalId: command.messageId.replaceAll('-', '').toUpperCase(),
+            delivery: 'failed',
+          });
+        return;
+      }
+    }
+    await executeLiveCommand(command, socket, emit, uploads, photos);
+  },
   factory: async (directory) => {
     const { state, saveCreds } = await useMultiFileAuthState(directory);
     const socket = makeWASocket({

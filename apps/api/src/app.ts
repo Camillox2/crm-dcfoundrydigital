@@ -26,6 +26,8 @@ import { registerReportingRoutes } from './reporting-routes.js';
 import { WorkspaceError } from './module-store.js';
 import { registerWhatsAppRoutes } from './whatsapp-routes.js';
 import type { WhatsAppTransport } from './whatsapp-runtime.js';
+import { registerFoundryRoutes } from './foundry-routes.js';
+import type { FoundryGenerate } from './foundry-engine.js';
 
 export interface DemoUserRecord {
   id: string;
@@ -45,6 +47,7 @@ export async function buildApiServer(
     workspaceStore?: WorkspaceStore;
     testDatabase?: DatabaseConnectionResult;
     whatsappTransport?: WhatsAppTransport;
+    foundryGenerate?: FoundryGenerate;
   } = {},
 ): Promise<{
   app: FastifyInstance;
@@ -106,9 +109,10 @@ export async function buildApiServer(
     const db = await database();
     return db ? new PostgresWorkspaceStore(db.pool) : null;
   };
-  await registerModuleRoutes(app, database);
+  await registerModuleRoutes(app, database, options.foundryGenerate);
   await registerReportingRoutes(app, database);
   const whatsapp = await registerWhatsAppRoutes(app, database, options.whatsappTransport);
+  await registerFoundryRoutes(app, database, whatsapp, options.foundryGenerate);
   app.addHook('onClose', async () => {
     if (connection) await (await connection).pool.end();
   });

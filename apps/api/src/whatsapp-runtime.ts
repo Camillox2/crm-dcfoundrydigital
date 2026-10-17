@@ -5,9 +5,30 @@ import { WhatsAppStore } from './whatsapp-store.js';
 export interface WhatsAppTransport {
   publish(command: WhatsAppCommand): Promise<void>;
   close(): Promise<void>;
+  control?(leadId: string, revision: number, paused: boolean): Promise<void>;
+  enabled?(enabled: boolean): Promise<void>;
 }
 export async function flushWhatsAppCommands(store: WhatsAppStore, transport: WhatsAppTransport) {
   for (const command of await store.pending()) {
+    if (command.actorType === 'foundry' && command.leadId) {
+      const control = (
+        await store.pool.query(
+          'SELECT ai_control_revision,ai_paused FROM workspace_leads WHERE id=$1',
+          [command.leadId],
+        )
+      ).rows[0];
+      if (
+        !control ||
+        control.ai_control_revision !== command.aiRevision ||
+        (control.ai_paused && !command.handoffAck)
+      ) {
+        await store.pool.query('UPDATE wa_commands SET cancelled_at=now() WHERE id=$1', [
+          command.id,
+        ]);
+        continue;
+      }
+      await transport.control?.(command.leadId, control.ai_control_revision, control.ai_paused);
+    }
     await transport.publish(command);
     await store.pool.query('UPDATE wa_commands SET published_at=now() WHERE id=$1', [command.id]);
   }
@@ -28,6 +49,12 @@ export function startWhatsAppTransport(
   );
   worker.on('error', () => undefined);
   return {
+    async control(leadId, revision, paused) {
+      await producer.hset('dc-wa-ai-controls', leadId, JSON.stringify({ revision, paused }));
+    },
+    async enabled(enabled) {
+      await producer.set('dc-wa-ai-enabled', enabled ? '1' : '0', 'PX', 15000);
+    },
     async publish(command) {
       await queue.add(command.type, command, {
         jobId: command.id,

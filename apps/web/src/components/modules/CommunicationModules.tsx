@@ -17,6 +17,7 @@ import { ModuleNotice } from './ModuleTools.js';
 import { RecordsModule } from './RecordsModule.js';
 import { ContactAvatar } from '../ContactAvatar.js';
 import { WhatsAppConnection } from './WhatsAppConnection.js';
+import { FoundryLab } from './FoundryControls.js';
 
 export function WhatsAppWorkspace({
   user,
@@ -212,13 +213,16 @@ export function AssistantWorkspace({ user }: { user: AuthenticatedSession }) {
           ['knowledge', 'Base de conhecimento'],
           ['assistant', 'Orientações'],
           ['history', 'Histórico'],
+          ['lab', 'Agente & laboratório'],
         ].map(([id, label]) => (
           <button key={id} aria-pressed={tab === id} onClick={() => setTab(id!)}>
             {label}
           </button>
         ))}
       </div>
-      {tab === 'knowledge' || tab === 'assistant' ? (
+      {tab === 'lab' ? (
+        <FoundryLab user={user} />
+      ) : tab === 'knowledge' || tab === 'assistant' ? (
         <RecordsModule kind={tab} user={user} />
       ) : tab === 'history' ? (
         <div className="conversation-history">

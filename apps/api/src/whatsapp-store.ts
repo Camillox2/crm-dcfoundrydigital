@@ -138,7 +138,7 @@ export class WhatsAppStore {
   }
   async pending(): Promise<WhatsAppCommand[]> {
     const r = await this.pool.query(
-      `SELECT c.*,s.provider,s.import_history FROM wa_commands c JOIN wa_sessions s ON s.id=c.session_id WHERE c.published_at IS NULL ORDER BY c.created_at LIMIT 30`,
+      `SELECT c.*,s.provider,s.import_history FROM wa_commands c JOIN wa_sessions s ON s.id=c.session_id WHERE c.published_at IS NULL AND c.cancelled_at IS NULL ORDER BY c.created_at LIMIT 30`,
     );
     return r.rows.map((row) => ({
       id: row.id,
@@ -151,6 +151,10 @@ export class WhatsAppStore {
       messageId: row.message_id ?? undefined,
       jid: row.jid ?? undefined,
       text: row.body ?? undefined,
+      leadId: row.lead_id ?? undefined,
+      aiRevision: row.ai_revision ?? undefined,
+      actorType: row.ai_revision !== null ? 'foundry' : 'human',
+      handoffAck: row.handoff_ack,
       media: row.media_key
         ? { key: row.media_key, mime: row.mime_type, name: row.file_name, type: row.media_type }
         : undefined,

@@ -26,6 +26,18 @@ API e worker montam `crm_uploads` em `CRM_UPLOAD_DIR=/data/uploads`; preserve es
 
 As atualizações passam por SSE autenticado na mesma API, sem porta nova. Fotos são consultadas no socket ativo com cache limitado em memória e separado por geração da sessão; trocar de provedor invalida o resultado anterior. Fotos privadas ou indisponíveis usam iniciais. Nenhuma variável adicional além de `CRM_UPLOAD_DIR` é necessária neste item.
 
+### Foundry compartilhada — item 3
+
+Após a migration `0008_foundry_agent.sql`, a base de conhecimento e as orientações têm tabelas e versões próprias; os registros anteriores são migrados sem apagar o histórico. **Foundry IA → Base de conhecimento** define serviços e informações factuais. O público `public` pode ser usado com clientes e equipe; `internal` é restrito ao chat interno. **Orientações** controla o tom e o procedimento da mesma Foundry, não cria um segundo agente.
+
+Configure `GEMINI_API_KEY` somente no servidor. `GEMINI_MODELS` aceita até dez IDs separados por vírgula; nomes repetidos são descartados. Sem lista, o provedor descobre modelos de texto disponíveis. Disponibilidade e cota são decididas pelo provedor; o sistema não presume acesso gratuito pelo nome de um modelo. Não há variável com preço comercial da agência: cadastre somente condições reais na base.
+
+Em **Agente & laboratório**, teste os cenários e depois ative as respostas automáticas no WhatsApp. Começa desativada. O laboratório registra apenas a execução de teste; não envia mensagens, agenda reuniões nem cria ou modifica leads reais. O teste automatizado percorre os dez modelos com respostas Gemini simuladas.
+
+Na conversa, **Assumir atendimento** pausa a Foundry e invalida respostas pendentes. Enviar uma resposta humana também assume o atendimento. **Retomar Foundry** exige a revisão atual do controle; uma aba antiga não retoma uma pausa mais recente. O worker verifica a revisão no Redis antes da entrega. Uma mensagem cuja entrega já começou no provedor não pode ser desfeita. A chave global da automação expira sem heartbeat da API. O perfil precisa manter acesso ao lead para usar esses controles ou o resumo.
+
+O agente extrai tipo de projeto, objetivo, orçamento informado, prazo, decisão e urgência somente quando há trecho de evidência no contato. Pedido de pessoa humana, resposta sem formato válido, preço sem base ou falha do provedor encaminham a conversa e pausam a automação. Mensagens históricas nunca acionam respostas automáticas. Reuniões só serão confirmadas após persistência na agenda do item 7.
+
 Requisitos: Node.js 22 atualizado, Corepack/pnpm 10.6, Docker com Compose e um domínio apontado para o servidor. Esta revisão não executa deploy no VPS.
 
 ## O que inicia limpo

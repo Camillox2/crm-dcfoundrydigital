@@ -22,6 +22,10 @@ export type WhatsAppCommand = {
   sessionId: string;
   generation: number;
   type: 'connect' | 'disconnect' | 'sync' | 'send' | 'photo';
+  leadId?: string;
+  aiRevision?: number;
+  actorType?: 'human' | 'foundry';
+  handoffAck?: boolean;
   provider: 'baileys' | 'meta';
   phone?: string;
   importHistory?: boolean;

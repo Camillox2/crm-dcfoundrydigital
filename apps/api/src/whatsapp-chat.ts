@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { requirePermission } from './plugins/auth.js';
 import { WorkspaceError } from './module-store.js';
 import { WhatsAppStore } from './whatsapp-store.js';
+import { applyFoundryControl } from './foundry-control.js';
 const uuid = z.string().uuid();
 const mediaInput = z.object({
   leadId: uuid,
@@ -54,6 +55,7 @@ export async function registerWhatsAppChat(
   repo: () => Promise<WhatsAppStore>,
   flush: () => Promise<void>,
   realtime: WhatsAppRealtime,
+  onHumanTakeover: (id: string) => Promise<void> = async () => {},
 ) {
   app.addHook('preClose', async () => {
     for (const response of realtime.connections) response.end();
@@ -157,6 +159,8 @@ export async function registerWhatsAppChat(
             found.actor_id !== req.authUser!.id)
         )
           throw new WorkspaceError(409, 'Identificador de envio já utilizado.');
+        if (!found)
+          await applyFoundryControl(client, input.leadId, true, undefined, req.authUser!.id);
         await client.query(
           `INSERT INTO wa_messages(id,session_id,lead_id,external_id,jid,direction,actor_type,actor_id,body,historical,sent_at,message_type,delivery,media_key,mime_type,file_name,media_bytes) VALUES($1,$2,$3,$4,$5,'outbound','human',$6,$7,false,now(),$8,'queued',$9,$10,$11,$12) ON CONFLICT(id) DO NOTHING`,
           [
@@ -200,6 +204,7 @@ export async function registerWhatsAppChat(
       } finally {
         client.release();
       }
+      await onHumanTakeover(input.leadId).catch(() => undefined);
       await flush().catch(() => undefined);
       realtime.events.emit(input.id);
       return reply.status(202).send({ id: body.requestId, delivery: 'queued' });

@@ -176,6 +176,7 @@ export const KnowledgeInput = z.object({
   title: short.min(3),
   content: z.string().trim().min(10).max(24000),
   category: short.default('Empresa'),
+  audience:z.enum(['public','internal']).default('public'),
 });
 export const AssistantInput = z.object({
   title: short.min(2).default('Foundry'),

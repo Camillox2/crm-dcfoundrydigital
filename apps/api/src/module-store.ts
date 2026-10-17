@@ -7,6 +7,7 @@ import type {
   CampaignData,
 } from '@dcfoundry/shared';
 import type { WorkspaceActor } from './workspace-store.js';
+import { TypedModuleStore, typedModules } from './typed-module-store.js';
 
 export class WorkspaceError extends Error {
   constructor(
@@ -43,6 +44,8 @@ export class ModuleStore {
     offset = 0,
     limit = 100,
   ) {
+    if (typedModules[kind])
+      return new TypedModuleStore(this.pool).list(kind, actor, archived, q, offset, limit);
     const args = [...values(actor), kind, archived, q, offset, limit];
     const where = `${scope} AND d.kind=$5 AND (d.archived_at IS NOT NULL)=$6 AND ($7='' OR d.data->>'title' ILIKE '%'||$7||'%' OR d.data->>'client' ILIKE '%'||$7||'%')`;
     const result = await this.pool.query(
@@ -56,6 +59,7 @@ export class ModuleStore {
     return { items: result.rows.map(map), total: Number(count.rows[0]?.total ?? 0) };
   }
   async get(id: string, kind: ModuleKind, actor: WorkspaceActor) {
+    if (typedModules[kind]) return new TypedModuleStore(this.pool).get(id, kind, actor);
     const r = await this.pool.query(
       `SELECT ${columns} FROM workspace_documents d WHERE ${scope} AND d.id=$5 AND d.kind=$6`,
       [...values(actor), id, kind],
@@ -72,6 +76,8 @@ export class ModuleStore {
     version?: number,
     archive?: boolean,
   ) {
+    if (typedModules[kind])
+      return new TypedModuleStore(this.pool).save(kind, actor, data, leadId, id, version, archive);
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -185,6 +191,7 @@ export class ModuleStore {
     }
   }
   async versions(id: string, kind: ModuleKind, actor: WorkspaceActor) {
+    if (typedModules[kind]) return new TypedModuleStore(this.pool).versions(id, kind, actor);
     await this.get(id, kind, actor);
     return (
       await this.pool.query(

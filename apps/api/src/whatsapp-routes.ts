@@ -20,9 +20,11 @@ export async function registerWhatsAppRoutes(
   let transport = provided;
   let flushing = false;
   const realtime = new WhatsAppRealtime();
+  let agent: ((event: import('@dcfoundry/shared').WhatsAppEvent) => Promise<void>) | undefined;
   const processEvent = async (event: import('@dcfoundry/shared').WhatsAppEvent) => {
     await (await store()).ingest(event);
     realtime.receive(event);
+    await agent?.(event);
   };
   const store = async () => {
     const db = await database();
@@ -42,7 +44,15 @@ export async function registerWhatsAppRoutes(
     if (!bus) return;
     flushing = true;
     try {
-      await flushWhatsAppCommands(await store(), bus);
+      const repo = await store();
+      const enabled =
+        (
+          await repo.pool.query(
+            'SELECT whatsapp_enabled FROM foundry_settings WHERE singleton=true',
+          )
+        ).rows[0]?.whatsapp_enabled === true;
+      await bus.enabled?.(enabled);
+      await flushWhatsAppCommands(repo, bus);
     } finally {
       flushing = false;
     }
@@ -134,6 +144,28 @@ export async function registerWhatsAppRoutes(
         return reply.status(202).send({ queued: true });
       },
     );
-  await registerWhatsAppChat(app, store, flush, realtime);
-  return { store, flush, realtime, processEvent };
+  await registerWhatsAppChat(app, store, flush, realtime, (id) => syncControl(id));
+  const syncControl = async (id: string) => {
+    const repo = await store(),
+      lead = (
+        await repo.pool.query(
+          'SELECT ai_paused,ai_control_revision FROM workspace_leads WHERE id=$1',
+          [id],
+        )
+      ).rows[0];
+    if (lead) await getTransport()?.control?.(id, lead.ai_control_revision, lead.ai_paused);
+  };
+  return {
+    store,
+    flush,
+    realtime,
+    processEvent,
+    syncControl,
+    setAgent: (handler: typeof agent) => {
+      agent = handler;
+    },
+    setAgentEnabled: async (enabled: boolean) => {
+      await getTransport()?.enabled?.(enabled);
+    },
+  };
 }
