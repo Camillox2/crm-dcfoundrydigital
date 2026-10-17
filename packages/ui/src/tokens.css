@@ -81,7 +81,16 @@
   --radius-lg: 20px;
 
   /* Sombras Suaves Azuladas */
-  --shadow-card: 0 4px 20px -2px rgba(11, 30, 51, 0.06), 0 2px 6px -1px rgba(29, 95, 174, 0.04);
+  --shadow-sm: 0 1px 2px rgba(11, 30, 51, 0.06);
+  --shadow-md: 0 4px 20px -2px rgba(11, 30, 51, 0.06), 0 2px 6px -1px rgba(29, 95, 174, 0.04);
+  --shadow-card: var(--shadow-md);
+  --surface-raised: var(--bg-card);
+  --surface-sunken: var(--bg-subtle);
+  --surface-canvas: var(--bg-page);
+  --ink: var(--text-primary);
+  --ink-muted: var(--text-secondary);
+  --ink-faint: var(--text-muted);
+  --border-subtle: var(--border-default);
   --shadow-elevated: 0 14px 34px -4px rgba(10, 29, 53, 0.14), 0 4px 12px -2px rgba(29, 95, 174, 0.08);
   --shadow-primary-btn: 0 12px 24px -10px rgba(29, 95, 174, 0.65);
 
@@ -114,7 +123,9 @@
   --status-success-hover: var(--color-teal-600);
   --status-success-bg: rgba(15, 118, 110, 0.28);
   --status-success-soft: rgba(15, 118, 110, 0.14);
-  --shadow-card: 0 6px 24px -2px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 24px -2px rgba(0, 0, 0, 0.45);
+  --shadow-card: var(--shadow-md);
   --shadow-elevated: 0 18px 40px -4px rgba(0, 0, 0, 0.65);
 }
 

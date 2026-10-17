@@ -174,9 +174,6 @@ export const FoundryArchitectureArt: React.FC<{
   );
 };
 
-// Mantém alias BedArt apontando para FoundryArchitectureArt caso algum teste legado importe
-export const BedArt = FoundryArchitectureArt;
-
 /**
  * 2. Ilustração vetorial de Deploy / Entrega de Projeto & Squad
  */

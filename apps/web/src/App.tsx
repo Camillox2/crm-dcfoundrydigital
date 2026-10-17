@@ -26,6 +26,7 @@ import { ContactAvatar } from './components/ContactAvatar.js';
 import { useWorkspace } from './components/useWorkspace.js';
 import { useDialogFocus } from './components/useDialogFocus.js';
 import '@dcfoundry/ui/tokens.css';
+import '@dcfoundry/ui/primitives.css';
 import './workspace.css';
 import './modules.css';
 import './operations.css';
