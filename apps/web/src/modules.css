@@ -1071,3 +1071,94 @@
     animation: none;
   }
 }
+
+/* Uso da IA */
+.ai-usage {
+  display: grid;
+  gap: 16px;
+}
+.ai-usage-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.ai-usage-kpis small {
+  display: block;
+  color: var(--text-secondary, #405267);
+}
+.ai-usage-kpis strong {
+  font-family: Manrope, Inter, sans-serif;
+  font-size: 1.5rem;
+}
+.ai-usage-chart {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.ai-usage-label,
+.ai-usage-value {
+  font-size: 12px;
+  fill: currentColor;
+}
+.ai-usage-chart .ok,
+.ai-usage-legend .ok {
+  fill: #0f766e;
+  background: #0f766e;
+}
+.ai-usage-chart .quota,
+.ai-usage-legend .quota {
+  fill: #d97706;
+  background: #d97706;
+}
+.ai-usage-chart .error,
+.ai-usage-legend .error {
+  fill: #b42318;
+  background: #b42318;
+}
+.ai-usage-chart .axis {
+  stroke: var(--border, #dfe7ec);
+}
+.ai-usage-chart .line-calls {
+  fill: none;
+  stroke: #1d5fae;
+  stroke-width: 2.5;
+}
+.ai-usage-chart .line-success {
+  fill: none;
+  stroke: #0f766e;
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+.ai-usage-chart .dot {
+  fill: #1d5fae;
+}
+.ai-usage-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 0.85rem;
+}
+.ai-usage-legend span {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+.ai-usage-legend .line-calls {
+  background: #1d5fae;
+}
+.ai-usage-legend .line-success {
+  background: #0f766e;
+}
+.ai-usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.ai-usage-table th,
+.ai-usage-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border, #dfe7ec);
+}

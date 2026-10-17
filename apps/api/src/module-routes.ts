@@ -17,6 +17,7 @@ import { ModuleStore, WorkspaceError } from './module-store.js';
 import { publicPost, publishedSql, flushBlogOutbox } from './blog-publishing.js';
 import { askGemini } from './assistant-provider.js';
 import { loadFoundryContext, type FoundryGenerate } from './foundry-engine.js';
+import { aiUsageSummary, recordAiAttempt } from './ai-usage.js';
 
 type Database = () => Promise<DatabaseConnectionResult> | null;
 const uuid = z.string().uuid();
@@ -227,7 +228,12 @@ export async function registerModuleRoutes(
         scope: resolveGrantedScope(req.authUser!.roles, 'ai_agent:read')!,
       };
       const { context } = await loadFoundryContext(store.pool, 'internal');
-      const result = await generate(input.message, context);
+      const result =
+        generate === askGemini
+          ? await askGemini(input.message, context, fetch, (attempt) =>
+              recordAiAttempt(store.pool, a.id, attempt),
+            )
+          : await generate(input.message, context);
       await store.save(
         'conversation',
         { ...a, scope: 'own' },
@@ -243,6 +249,14 @@ export async function registerModuleRoutes(
       return result;
     },
   );
+  app.get('/api/v1/workspace/ai-usage', { preHandler: [requireSession] }, async (req) => {
+    if (!req.authUser!.roles.includes('admin'))
+      throw new WorkspaceError(403, 'Somente administradores podem ver o uso da IA.');
+    const { days } = z
+      .object({ days: z.coerce.number().pipe(z.union([z.literal(7), z.literal(30)])).default(7) })
+      .parse(req.query);
+    return aiUsageSummary((await repo()).pool, days);
+  });
   app.post(
     '/api/v1/media',
     { bodyLimit: 3_000_000, preHandler: [requirePermission('blog:create')] },

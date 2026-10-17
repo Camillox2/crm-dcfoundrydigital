@@ -66,4 +66,32 @@ describe('Publishing and module contracts', () => {
       else process.env.GEMINI_MODELS = originalModels;
     }
   });
+  it('reports each Gemini attempt for usage tracking', async () => {
+    const originalKey = process.env.GEMINI_API_KEY,
+      originalModels = process.env.GEMINI_MODELS;
+    process.env.GEMINI_API_KEY = 'unit-test-only';
+    process.env.GEMINI_MODELS = 'flash-a,flash-b';
+    let call = 0;
+    const send = (async () =>
+      ++call === 1
+        ? new Response('{}', { status: 429 })
+        : Response.json({
+            candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'Resposta.' }] } }],
+            usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 4, totalTokenCount: 14 },
+          })) as typeof fetch;
+    const attempts: import('../apps/api/src/assistant-provider.js').AiAttempt[] = [];
+    try {
+      await askGemini('Ajude a equipe.', 'Contexto.', send, (a) => attempts.push(a));
+      expect(attempts.map((a) => [a.model, a.outcome, a.fallbackPosition])).toEqual([
+        ['flash-a', 'quota', 1],
+        ['flash-b', 'success', 2],
+      ]);
+      expect(attempts[1]!.totalTokens).toBe(14);
+    } finally {
+      if (originalKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = originalKey;
+      if (originalModels === undefined) delete process.env.GEMINI_MODELS;
+      else process.env.GEMINI_MODELS = originalModels;
+    }
+  });
 });
