@@ -16,6 +16,7 @@ import { useCrmApi, useModule } from './useModule.js';
 import { ModuleNotice } from './ModuleTools.js';
 import { RecordsModule } from './RecordsModule.js';
 import { ContactAvatar } from '../ContactAvatar.js';
+import { WhatsAppConnection } from './WhatsAppConnection.js';
 
 export function WhatsAppWorkspace({
   user,
@@ -40,6 +41,7 @@ export function WhatsAppWorkspace({
     );
   return (
     <div className="module-workspace">
+      <WhatsAppConnection user={user} />
       <div className="module-tabs">
         <button
           aria-pressed={tab === 'compose'}

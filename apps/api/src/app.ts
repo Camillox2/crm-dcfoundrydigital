@@ -24,6 +24,8 @@ import { ImmutableAuditService } from './plugins/audit.js';
 import { registerModuleRoutes } from './module-routes.js';
 import { registerReportingRoutes } from './reporting-routes.js';
 import { WorkspaceError } from './module-store.js';
+import { registerWhatsAppRoutes } from './whatsapp-routes.js';
+import type { WhatsAppTransport } from './whatsapp-runtime.js';
 
 export interface DemoUserRecord {
   id: string;
@@ -38,7 +40,7 @@ export interface DemoUserRecord {
 }
 
 export async function buildApiServer(
-  options: { users?: DemoUserRecord[]; workspaceStore?: WorkspaceStore } = {},
+  options: { users?: DemoUserRecord[]; workspaceStore?: WorkspaceStore; testDatabase?: DatabaseConnectionResult; whatsappTransport?: WhatsAppTransport } = {},
 ): Promise<{
   app: FastifyInstance;
   auditService: ImmutableAuditService;
@@ -84,6 +86,10 @@ export async function buildApiServer(
     throw new Error('DATABASE_URL is required in production.');
   let connection: Promise<DatabaseConnectionResult> | undefined;
   const database = () => {
+    if(options.testDatabase) {
+      if(process.env.NODE_ENV==='production')throw new Error('Test database injection is unavailable in production.');
+      return Promise.resolve(options.testDatabase);
+    }
     if (!process.env.DATABASE_URL) return null;
     connection ??= createDatabaseConnection(process.env.DATABASE_URL, '');
     return connection;
@@ -95,6 +101,7 @@ export async function buildApiServer(
   };
   await registerModuleRoutes(app, database);
   await registerReportingRoutes(app, database);
+  await registerWhatsAppRoutes(app, database, options.whatsappTransport);
   app.addHook('onClose', async () => {
     if (connection) await (await connection).pool.end();
   });

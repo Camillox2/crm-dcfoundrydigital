@@ -1,11 +1,13 @@
 import pg from 'pg';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from './schema.js';
+import * as agencySchema from './agency-schema.js';
+const completeSchema = { ...schema, ...agencySchema };
 
 const { Pool } = pg;
 
 export interface DatabaseConnectionResult {
-  db: NodePgDatabase<typeof schema>;
+  db: NodePgDatabase<typeof completeSchema>;
   pool: pg.Pool;
   activeTarget: 'primary' | 'fallback';
 }
@@ -32,7 +34,7 @@ export async function createDatabaseConnection(
     const client = await primaryPool.connect();
     client.release();
     return {
-      db: drizzle(primaryPool, { schema }),
+      db: drizzle(primaryPool, { schema: completeSchema }),
       pool: primaryPool,
       activeTarget: 'primary',
     };
@@ -53,7 +55,7 @@ export async function createDatabaseConnection(
     const client = await fallbackPool.connect();
     client.release();
     return {
-      db: drizzle(fallbackPool, { schema }),
+      db: drizzle(fallbackPool, { schema: completeSchema }),
       pool: fallbackPool,
       activeTarget: 'fallback',
     };

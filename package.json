@@ -2,7 +2,7 @@
   "name": "dc-foundry-crm",
   "version": "1.0.0",
   "private": true,
-  "description": "DC Foundry Digital CRM — Plataforma de CRM, Locação/Venda Hospitalar, WhatsApp IA e Atribuição de Marketing",
+  "description": "DC Foundry Digital CRM — Sites, sistemas, apps, marketing digital e Foundry IA",
   "packageManager": "pnpm@10.6.0",
   "engines": {
     "node": ">=22.0.0"
@@ -10,7 +10,7 @@
   "scripts": {
     "build": "pnpm -r run build",
     "dev": "pnpm --parallel -r run dev",
-    "lint": "pnpm -r run lint",
+    "lint": "eslint apps packages tests",
     "typecheck": "pnpm -r run typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -23,15 +23,20 @@
     "db:admin": "node --env-file=.env --import tsx apps/api/src/bootstrap-admin.ts"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "@electric-sql/pglite-pgvector": "^0.0.11",
     "@types/node": "^22.13.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
-    "jsdom": "^26.0.0",
-    "supertest": "^7.0.0",
     "@types/supertest": "^6.0.2",
-    "turbo": "^2.4.2",
+    "eslint": "9",
+    "jsdom": "^26.0.0",
+    "prettier": "^3.9.10",
+    "supertest": "^7.0.0",
     "tsx": "^4.19.3",
+    "turbo": "^2.4.2",
     "typescript": "^5.7.3",
+    "typescript-eslint": "8",
     "vitest": "^3.0.7"
   }
 }

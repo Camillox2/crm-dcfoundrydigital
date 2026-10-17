@@ -1,0 +1,45 @@
+.wa-connection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.wa-connection-label {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.wa-connection-label p {
+  margin: 4px 0 0;
+}
+.wa-pairing {
+  max-width: 520px;
+  width: calc(100vw - 32px);
+  max-height: 90dvh;
+  overflow: auto;
+}
+.wa-qr {
+  width: 256px;
+  height: 256px;
+  max-width: 100%;
+  display: block;
+  margin: 20px auto;
+  border-radius: 16px;
+}
+.wa-pairing-code {
+  display: block;
+  font-size: 32px;
+  letter-spacing: 0.18em;
+  text-align: center;
+  padding: 20px;
+  font-weight: 700;
+}
+.wa-history-option {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+}
+.wa-history-option input {
+  width: auto;
+}

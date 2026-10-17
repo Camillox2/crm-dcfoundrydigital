@@ -1,5 +1,23 @@
 # Instalar em um VPS novo
 
+## WhatsApp persistente — portabilidade do item 1
+
+Rode as migrations antes de atualizar API e worker. A migration `0006_whatsapp_sessions.sql` cria tabelas específicas para sessões, identidades, mensagens e o outbox. Não altera os sete papéis, métricas Ads ou dados de Uso da IA.
+
+```sh
+docker compose --env-file .env -f infra/docker-compose.yml --profile whatsapp up -d --build api worker
+```
+
+Na tela **WhatsApp → Conectar**, escolha QR ou código e use **Aparelhos conectados** no telefone. O código exige E.164 com `+` e DDI. QR e código expiram em 60 segundos na API e só são disponibilizados a usuários autenticados no escopo da sessão. O código, o QR e as credenciais não entram nos logs.
+
+A sessão fica no volume `whatsapp_sessions`, montado somente no worker em `/data/whatsapp`. Preserve e faça backup privado desse volume; não use `docker compose down -v` em uma atualização. O worker restaura sessões habilitadas após reinício e tenta reconectar com espera progressiva. **Desconectar** pausa a sessão sem apagar o volume. Para revogar o aparelho, use o WhatsApp no telefone.
+
+`WHATSAPP_SESSION_DIR=/data/whatsapp`, `WHATSAPP_MAX_SESSIONS=1` e `REDIS_URL=redis://redis:6379` são as variáveis deste item. API e worker se comunicam por filas Redis. O outbox PostgreSQL permite retomar comandos após indisponibilidade do Redis; IDs de evento e de mensagem evitam duplicação. Cada troca de provedor invalida eventos anteriores e limpa o status e os códigos de pareamento. A opção Meta apenas desconecta Baileys; não implementa uma integração Meta.
+
+O histórico é recebido em lotes limitados, sem manter uma cópia completa na RAM. Por padrão, importa mensagens de contatos conhecidos; marque **Criar contatos também a partir do histórico recebido** para incluir contatos novos identificáveis pelo telefone. Um LID sem telefone não vira número. A cobertura depende do telefone: a porcentagem informa o progresso devolvido pelo provedor, não garante todo o histórico. **Sincronizar** solicita até 50 mensagens anteriores à mais antiga já recebida.
+
+Limites do Compose: PostgreSQL 512 MB, Redis 128 MB, API 384 MB, worker 384 MB e Caddy 96 MB (1.504 MB no total). Não foram adicionadas portas. O worker usa heap de 256 MB e uma sessão por padrão. Os limites precisam ser acompanhados com `docker stats` após o pareamento real. Os testes usam socket Baileys simulado e PostgreSQL descartável; não pareiam um telefone real.
+
 Requisitos: Node.js 22 atualizado, Corepack/pnpm 10.6, Docker com Compose e um domínio apontado para o servidor. Esta revisão não executa deploy no VPS.
 
 ## O que inicia limpo

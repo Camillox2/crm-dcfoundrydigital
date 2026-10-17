@@ -12,15 +12,15 @@ services:
     command:
       - 'postgres'
       - '-c'
-      - 'shared_buffers=256MB'
+      - 'shared_buffers=128MB'
       - '-c'
-      - 'effective_cache_size=768MB'
+      - 'effective_cache_size=384MB'
       - '-c'
-      - 'work_mem=8MB'
+      - 'work_mem=4MB'
       - '-c'
-      - 'maintenance_work_mem=64MB'
+      - 'maintenance_work_mem=32MB'
       - '-c'
-      - 'max_connections=60'
+      - 'max_connections=24'
     ports:
       - '127.0.0.1:5432:5432'
     volumes:
@@ -35,7 +35,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 512M
+    mem_limit: 512m
 
   redis:
     image: redis:7-alpine
@@ -47,7 +48,7 @@ services:
         '--appendonly',
         'yes',
         '--maxmemory',
-        '192mb',
+        '96mb',
         '--maxmemory-policy',
         'noeviction',
       ]
@@ -63,7 +64,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 224M
+          memory: 128M
+    mem_limit: 128m
 
   api:
     build:
@@ -74,7 +76,7 @@ services:
     env_file:
       - ../.env
     environment:
-      NODE_OPTIONS: '--max-old-space-size=512'
+      NODE_OPTIONS: '--max-old-space-size=256'
       PORT: '4000'
     ports:
       - '127.0.0.1:4000:4000'
@@ -93,7 +95,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 640M
+          memory: 384M
+    mem_limit: 384m
 
   worker:
     profiles: ['whatsapp']
@@ -105,7 +108,12 @@ services:
     env_file:
       - ../.env
     environment:
-      NODE_OPTIONS: '--max-old-space-size=768'
+      NODE_OPTIONS: '--max-old-space-size=256'
+      WHATSAPP_SESSION_DIR: '/data/whatsapp'
+      WHATSAPP_MAX_SESSIONS: '1'
+    volumes:
+      - whatsapp_sessions:/data/whatsapp
+      - crm_uploads:/data/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,7 +122,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 896M
+          memory: 384M
+    mem_limit: 384m
 
   caddy:
     environment:
@@ -135,9 +144,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 96M
+    mem_limit: 96m
 
 volumes:
+  whatsapp_sessions:
   crm_uploads:
   postgres_data:
   redis_data:

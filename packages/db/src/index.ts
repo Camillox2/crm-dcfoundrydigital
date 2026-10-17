@@ -82,3 +82,4 @@ export const INITIAL_EQUIPMENT_CATALOG_SEED: SeedEquipmentCatalogItem[] = [
 export * from './schema.js';
 export * from './client.js';
 export * from './operations.js';
+export * from './agency-schema.js';
