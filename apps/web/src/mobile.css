@@ -228,29 +228,34 @@
   .wa-list-tools {
     flex-wrap: nowrap;
   }
-  .wa-convo-meta {
-    flex-wrap: wrap;
+  .wa-quick,
+  .wa-quick-empty,
+  .wa-day-filters,
+  .wa-pill-extra,
+  .wa-emoji-toggle,
+  .wa-head-menu,
+  .wa-more {
+    display: none;
   }
-  .wa-convo-meta span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .crm-page .wa-inbox > .wa-connection.dcf-card {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 6px 10px !important;
+    border-radius: 0;
+    box-shadow: none;
   }
-  .wa-head-menu {
-    max-height: min(60dvh, 420px);
-    overflow: auto;
+  .wa-inbox > .wa-connection > span,
+  .wa-inbox > .wa-connection .wa-connection-label p,
+  .wa-inbox[data-thread='open'] > .wa-connection {
+    display: none;
   }
-  .wa-head-menu .wa-pill {
-    width: 100%;
-    justify-content: flex-start;
-    min-height: 44px;
+  .wa-inbox > .wa-connection .module-actions {
+    margin-left: auto;
+    flex: none;
+    flex-wrap: nowrap;
   }
   .wa-composer {
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
-  }
-  .wa-quick {
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    padding-bottom: max(9px, env(safe-area-inset-bottom));
   }
 
   .workspace-dialog-overlay {

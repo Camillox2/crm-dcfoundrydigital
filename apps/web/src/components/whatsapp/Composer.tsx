@@ -52,7 +52,7 @@ export function Composer({
     node.style.height = `${Math.min(node.scrollHeight, 144)}px`;
   }, [text]);
   useEffect(() => {
-    if (!file || !file.type.startsWith('image/') && !file.type.startsWith('audio/')) {
+    if (!file || (!file.type.startsWith('image/') && !file.type.startsWith('audio/'))) {
       setPreview('');
       return;
     }
@@ -112,9 +112,12 @@ export function Composer({
   };
   const startRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const preferred = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((item) =>
-      MediaRecorder.isTypeSupported(item),
-    );
+    const preferred = [
+      'audio/ogg;codecs=opus',
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+    ].find((item) => MediaRecorder.isTypeSupported(item));
     const media = new MediaRecorder(stream, preferred ? { mimeType: preferred } : undefined);
     chunks.current = [];
     media.ondataavailable = (event) => {
@@ -154,7 +157,9 @@ export function Composer({
       <QuickReplies
         items={replies}
         query={text}
-        onPick={(content) => onText(content.replaceAll('{nome}', lead.name).replaceAll('{empresa}', lead.company))}
+        onPick={(content) =>
+          onText(content.replaceAll('{nome}', lead.name).replaceAll('{empresa}', lead.company))
+        }
       />
       {file && (
         <div className="wa-file-card">
@@ -166,7 +171,11 @@ export function Composer({
           </span>
           {file.type.startsWith('image/') && (
             <label>
-              <input type="checkbox" checked={asSticker} onChange={(event) => onSticker(event.target.checked)} />
+              <input
+                type="checkbox"
+                checked={asSticker}
+                onChange={(event) => onSticker(event.target.checked)}
+              />
               Enviar como figurinha
             </label>
           )}
@@ -177,7 +186,8 @@ export function Composer({
       )}
       {recording && (
         <div className="wa-recording" role="status">
-          <Mic size={16} /> Gravando {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
+          <Mic size={16} /> Gravando {Math.floor(seconds / 60)}:
+          {String(seconds % 60).padStart(2, '0')}
           <button type="button" onClick={() => stopRecording(false)}>
             <Trash2 size={16} /> Cancelar
           </button>
@@ -187,7 +197,13 @@ export function Composer({
         </div>
       )}
       <div className="wa-composer-row">
-        <button type="button" className="icon-button" aria-label="Inserir emoji" aria-expanded={emoji} onClick={() => setEmoji((value) => !value)}>
+        <button
+          type="button"
+          className="icon-button wa-emoji-toggle"
+          aria-label="Inserir emoji"
+          aria-expanded={emoji}
+          onClick={() => setEmoji((value) => !value)}
+        >
           <Smile size={18} />
         </button>
         <label className="wa-attachment">
@@ -218,13 +234,20 @@ export function Composer({
         />
         <button
           type="button"
-          className="icon-button"
+          className="icon-button wa-mic"
           aria-label="Gravar áudio"
-          onClick={() => void startRecording().catch(() => setFileError('Não foi possível acessar o microfone.'))}
+          onClick={() =>
+            void startRecording().catch(() => setFileError('Não foi possível acessar o microfone.'))
+          }
         >
           <Mic size={18} />
         </button>
-        <button type="submit" className="wa-send" disabled={busy || disconnected || (!text.trim() && !file)} aria-label="Enviar">
+        <button
+          type="submit"
+          className="wa-send"
+          disabled={busy || disconnected || (!text.trim() && !file)}
+          aria-label="Enviar"
+        >
           <Send size={16} />
         </button>
       </div>

@@ -372,7 +372,8 @@
 .wa-thread {
   border-right: 0;
   background:
-    radial-gradient(circle at 12px 12px, var(--border-default) 1px, transparent 1.6px) 0 0 / 22px 22px,
+    radial-gradient(circle at 12px 12px, var(--border-default) 1px, transparent 1.6px) 0 0 / 22px
+      22px,
     var(--bg-page);
 }
 .wa-list header,
@@ -654,13 +655,28 @@
 }
 .wa-convo-id {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   align-items: center;
   position: relative;
 }
-.wa-convo-id h3,
+.wa-convo-who {
+  min-width: 0;
+}
 .wa-convo-id small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-convo-id h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.wa-convo-id h3 > span:first-child {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -694,6 +710,26 @@
   background: var(--status-success-soft);
   color: var(--status-success);
   border-color: transparent;
+}
+.wa-label-compact {
+  display: none;
+}
+.wa-back {
+  display: none;
+}
+.wa-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--brand-primary, #1d5fae);
+  text-decoration: none;
 }
 .wa-convo-meta {
   display: flex;
@@ -1160,7 +1196,59 @@
 
 @media (max-width: 859px) {
   .crm-main:has(.wa-inbox) {
-    padding-bottom: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
+  }
+  .wa-inbox {
+    width: 100%;
+    height: calc(
+      100dvh - 56px - env(safe-area-inset-top, 0px) - 72px - env(safe-area-inset-bottom, 0px)
+    );
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  body[data-wa-thread='open'] .wa-inbox {
+    height: calc(100dvh - 56px - env(safe-area-inset-top, 0px));
+  }
+  .crm-page .wa-inbox > .wa-connection.dcf-card {
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin: 0;
+    padding: 6px 10px !important;
+    border: 0;
+    border-bottom: 1px solid var(--border-default);
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .wa-inbox > .wa-connection > span,
+  .wa-inbox > .wa-connection .wa-connection-label p,
+  .wa-inbox[data-thread='open'] > .wa-connection {
+    display: none;
+  }
+  .wa-inbox > .wa-connection .wa-connection-label {
+    min-width: 0;
+    flex: 1;
+    gap: 8px;
+  }
+  .wa-inbox > .wa-connection .wa-connection-label strong {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .wa-inbox > .wa-connection .module-actions {
+    flex: none;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-left: auto;
+    overflow-x: auto;
+  }
+  .crm-page .wa-inbox > .wa-connection .dcf-button,
+  .wa-inbox > .wa-connection .text-button {
+    flex: none;
+    min-height: 32px;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
   }
   .wa-grid,
   .wa-grid[data-collapsed='true'],
@@ -1173,28 +1261,156 @@
   .wa-inbox[data-thread='open'] .wa-list {
     display: none;
   }
-  .wa-back,
-  .wa-more {
-    display: inline-flex;
+  .wa-list {
+    background: var(--bg-subtle);
   }
-  .wa-head-actions {
+  .wa-list header {
+    order: 0;
+  }
+  .wa-list header h2 {
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .wa-list header p {
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .wa-list-tools {
+    order: 1;
+  }
+  .wa-status-tabs {
+    order: 2;
+  }
+  .wa-search {
+    order: 3;
+  }
+  .wa-list-scroll {
+    order: 4;
+  }
+  .wa-day-filters,
+  .wa-list-tools button:not(:first-child),
+  .wa-pill-extra,
+  .wa-label-full,
+  .wa-more,
+  .wa-head-menu,
+  .wa-emoji-toggle,
+  .wa-quick,
+  .wa-quick-empty {
     display: none;
   }
-  .wa-head-menu {
+  .wa-convo-meta span,
+  .wa-convo-meta i {
+    display: none;
+  }
+  .wa-convo-meta:not(:has(strong)) {
+    display: none;
+  }
+  .wa-list-tools button:first-child {
+    width: 100%;
+    min-height: 36px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .wa-back {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+  }
+  .wa-convo-head {
     display: grid;
-    position: absolute;
-    top: 48px;
-    right: 0;
-    z-index: 5;
-    width: min(280px, 80vw);
-    padding: 8px;
-    border-radius: 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-default);
-    box-shadow: var(--shadow-elevated);
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 8px 11px;
   }
   .wa-convo-id {
-    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+  }
+  .wa-convo-id .contact-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 11px;
+  }
+  .crm-page .wa-inbox .wa-convo-id h3 {
+    font-size: 12px !important;
+    line-height: 1.3;
+  }
+  .wa-convo-id small {
+    font-size: 11px;
+  }
+  .wa-head-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 6px;
+  }
+  .wa-head-actions .wa-pill {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 4px;
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .wa-head-actions .wa-pill svg {
+    width: 13px;
+    height: 13px;
+    flex: none;
+  }
+  .wa-label-compact {
+    display: inline;
+  }
+  .wa-composer {
+    gap: 7px;
+    padding: 9px 9px max(9px, env(safe-area-inset-bottom, 0px));
+  }
+  .wa-composer-row {
+    display: grid;
+    grid-template-columns: 40px 40px minmax(0, 1fr) 40px;
+    align-items: end;
+    gap: 7px;
+  }
+  .wa-composer-row .wa-attachment {
+    order: 1;
+  }
+  .wa-composer-row .wa-mic {
+    order: 2;
+  }
+  .wa-composer-row textarea {
+    order: 3;
+    width: 100%;
+    padding: 10px 11px;
+    font-size: 16px;
+  }
+  .wa-composer-row .wa-send {
+    order: 4;
+  }
+  .wa-composer-row .wa-attachment,
+  .wa-composer-row .wa-mic,
+  .wa-composer-row .wa-send {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+  .wa-composer-row .wa-attachment,
+  .wa-composer-row .wa-mic {
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+  }
+  .wa-thread .wa-bubble {
+    max-width: 94%;
+    padding: 11px;
   }
   .wa-panel {
     top: 0;
@@ -1202,6 +1418,30 @@
   }
   body[data-wa-thread='open'] .crm-mobile-nav {
     display: none !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .wa-composer-row {
+    grid-template-columns: 36px 36px minmax(0, 1fr) 36px;
+    gap: 5px;
+  }
+  .wa-composer {
+    padding: 7px 7px max(7px, env(safe-area-inset-bottom, 0px));
+  }
+  .wa-composer-row .wa-attachment,
+  .wa-composer-row .wa-mic,
+  .wa-composer-row .wa-send {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+  .wa-call span {
+    display: none;
+  }
+  .wa-head-actions {
+    gap: 5px;
   }
 }
 
