@@ -64,6 +64,12 @@ A migration `0012_agency_calendar.sql` cria compromissos e versões em tabelas p
 
 Cada responsável configura dias, horário e duração em **Disponibilidade para a Foundry**; começa desativada. O fuso das reservas automáticas é Brasília. A Foundry exige data completa e horário informados pelo cliente, recusa horários ocupados e só confirma após gravar a reserva. O laboratório continua sem agendar. Não há integração de videoconferência automática: informe o link no compromisso. Não há variável nova.
 
+### Central e push — item 8
+
+A migration `0013_notifications.sql` registra alertas duráveis de novos leads, atendimento humano, queda do WhatsApp e compromissos nos próximos 15 minutos. Heartbeat ausente por 90 segundos retira o estado conectado; a reconexão continua no worker. O sino mostra apenas notificações da pessoa autenticada.
+
+Configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` para push. Gere um par próprio com `pnpm --filter @dcfoundry/api exec web-push generate-vapid-keys` no servidor e preserve a chave privada. O operador ativa notificações pelo sino e autoriza no navegador; a central funciona mesmo sem push. Requer HTTPS (localhost serve para desenvolvimento). Inscrições expiradas (404/410) são removidas, falhas têm até cinco tentativas e a carga contém somente avisos genéricos, sem nomes ou mensagens de clientes. Aceitação pelo provedor push não significa leitura. Sair da conta remove a inscrição deste navegador. Nenhuma porta nova é necessária.
+
 ## O que inicia limpo
 
 O seed cria somente os sete papéis de acesso, um pipeline comercial e suas quatro etapas. Não insere clientes, produtos, contratos, faturas, campanhas ou artigos. O administrador é criado por um comando separado. Contas e senhas de demonstração existem apenas em fixtures dos testes; a API não as carrega. O frontend de produção não oferece o botão de prévia local.

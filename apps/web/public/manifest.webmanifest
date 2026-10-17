@@ -1,7 +1,7 @@
 {
   "name": "DC Foundry Digital CRM",
   "short_name": "DC Foundry CRM",
-  "description": "Plataforma inteligente de CRM, Locação e Venda de Equipamentos Hospitalares, WhatsApp IA e Atribuição de Ads.",
+  "description": "Projetos, relacionamento, WhatsApp com Foundry IA, propostas, atendimento e marketing da DC Foundry Digital.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#061528",

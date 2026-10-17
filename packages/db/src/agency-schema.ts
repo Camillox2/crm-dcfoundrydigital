@@ -12,6 +12,44 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { users, pipelines } from './schema.js';
+export const crmNotifications = pgTable('crm_notifications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
+  eventKey: varchar('event_key', { length: 240 }).notNull().unique(),
+  kind: varchar('kind', { length: 32 }).notNull(),
+  title: varchar('title', { length: 180 }).notNull(),
+  body: varchar('body', { length: 500 }).notNull(),
+  page: varchar('page', { length: 32 }).notNull(),
+  entityId: uuid('entity_id'),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
+  endpoint: text('endpoint').notNull(),
+  endpointHash: varchar('endpoint_hash', { length: 64 }).notNull().unique(),
+  p256dh: varchar('p256dh', { length: 180 }).notNull(),
+  authCiphertext: text('auth_ciphertext').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const notificationPushDeliveries = pgTable('notification_push_deliveries', {
+  notificationId: uuid('notification_id')
+    .notNull()
+    .references(() => crmNotifications.id),
+  subscriptionId: uuid('subscription_id')
+    .notNull()
+    .references(() => pushSubscriptions.id),
+  status: varchar('status', { length: 24 }).notNull().default('queued'),
+  attempts: integer('attempts').notNull().default(0),
+  nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  lastStatus: integer('last_status'),
+});
 export const calendarSettings = pgTable('calendar_settings', {
   ownerId: uuid('owner_id')
     .primaryKey()

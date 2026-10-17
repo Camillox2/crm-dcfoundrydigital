@@ -28,6 +28,7 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import { DcLogo, useTheme } from '@dcfoundry/ui';
 import { resolveGrantedScope, type WorkspacePage, type PermissionKey } from '@dcfoundry/shared';
+import { NotificationCenter } from './NotificationCenter.js';
 import type { AuthenticatedSession } from '../pages/LoginPage.js';
 
 export const navigation = [
@@ -58,7 +59,7 @@ export const navigation = [
       { id: 'site', label: 'Site & SEO', icon: Globe },
       { id: 'blog', label: 'Blog & conteúdo', icon: BookOpen },
       { id: 'audit', label: 'Auditoria', icon: ShieldCheck },
-      { id:'settings',label:'Configurações',icon:Settings },
+      { id: 'settings', label: 'Configurações', icon: Settings },
     ],
   },
 ] as const;
@@ -78,15 +79,15 @@ const pageReadPermission: Record<WorkspacePage, PermissionKey> = {
   projects: 'task:read',
   agenda: 'task:read',
   site: 'marketing_ads:read',
-  settings:'settings:read',
+  settings: 'settings:read',
 };
 export function canNavigate(user: AuthenticatedSession, page: WorkspacePage) {
   if (page === 'reports')
     return Boolean(
       user.preview ||
-        ['lead:read', 'finance:read', 'task:read', 'blog:read', 'marketing_ads:read'].some(
-          (permission) => resolveGrantedScope(user.roles, permission as PermissionKey),
-        ),
+      ['lead:read', 'finance:read', 'task:read', 'blog:read', 'marketing_ads:read'].some(
+        (permission) => resolveGrantedScope(user.roles, permission as PermissionKey),
+      ),
     );
   return Boolean(user.preview || resolveGrantedScope(user.roles, pageReadPermission[page]));
 }
@@ -206,6 +207,7 @@ export function WorkspaceShell({
             <h1>{allNavigation.find((item) => item.id === page)?.label}</h1>
           </div>
           <div className="topbar-actions">
+            <NotificationCenter key={user.userId} user={user} onNavigate={onNavigate} />
             <span className="demo-indicator">
               <i />
               {user.localReview

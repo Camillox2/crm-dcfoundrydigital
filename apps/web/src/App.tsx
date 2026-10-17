@@ -34,6 +34,7 @@ import { downloadCsv } from './components/modules/useModule.js';
 import { LeadExtras } from './components/modules/LeadExtras.js';
 import { LeadFoundry } from './components/modules/FoundryControls.js';
 import { PipelineSettings } from './components/modules/PipelineSettings.js';
+import {removeBrowserPush} from './components/NotificationCenter.js';
 const BlogStudio = lazy(() =>
   import('./components/modules/BlogStudio.js').then((m) => ({
     default: m.BlogStudio,
@@ -229,6 +230,7 @@ export function App() {
       onSearch={showSearch}
       onLogout={() => {
         if (!window.dispatchEvent(new Event('crm:navigate', { cancelable: true }))) return;
+        void removeBrowserPush(user).catch(()=>undefined);
         setUser(null);
         setSelectedId(null);
         setFoundryOpen(false);

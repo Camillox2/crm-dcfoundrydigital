@@ -858,3 +858,99 @@
 .calendar-weekdays label {
   font-size: 12px;
 }
+.notification-wrap {
+  position: relative;
+}
+.notification-count {
+  position: absolute;
+  top: -1px;
+  right: -3px;
+  font-size: 9px;
+  background: #1765da;
+  color: white;
+  border: 2px solid white;
+  border-radius: 20px;
+  min-width: 17px;
+  padding: 1px 3px;
+}
+.notification-center {
+  position: absolute;
+  right: 0;
+  top: 48px;
+  width: min(380px, calc(100vw - 28px));
+  border: 1px solid #dbe5f1;
+  border-radius: 20px;
+  background: var(--bg-card, #fff);
+  box-shadow: 0 20px 80px #0b234333;
+  z-index: 90;
+  padding: 16px;
+  color: var(--text-primary, #19354e);
+}
+.notification-center header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.notification-center small {
+  display: block;
+  font-size: 11px;
+  color: #6c8198;
+  margin-top: 5px;
+}
+.notification-list {
+  max-height: min(400px, 50vh);
+  overflow: auto;
+  margin: 12px -5px;
+}
+.notification-action {
+  border: 0;
+  background: transparent;
+  color: #1765da;
+  padding: 10px 2px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+.notification-item {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #e3ebf4;
+  text-align: left;
+  padding: 15px 10px;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 10px;
+}
+.notification-item.is-unread {
+  background: #eaf3ff;
+}
+.notification-item strong {
+  font-size: 13px;
+}
+.notification-item span {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.notification-item time {
+  font-size: 10px;
+  color: #6c8198;
+}
+.notification-center footer {
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .notification-center {
+    position: fixed;
+    top: 70px;
+    right: 14px;
+  }
+  .notification-wrap .icon-button {
+    width: 34px;
+  }
+}
