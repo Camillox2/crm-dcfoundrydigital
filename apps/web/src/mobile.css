@@ -1,0 +1,326 @@
+/* Phone layout. Loaded last so it wins over earlier width locks. */
+
+@media (max-width: 860px) {
+  .clean-shell,
+  .workspace-column,
+  .crm-main,
+  .crm-main > div,
+  .crm-page,
+  .module-workspace,
+  .ops-dashboard,
+  .kanban-page {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .crm-topbar {
+    height: calc(56px + env(safe-area-inset-top));
+    min-height: calc(56px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 8px 0 !important;
+    gap: 6px;
+  }
+  .workspace-breadcrumb {
+    flex: 1;
+    min-width: 0;
+    gap: 4px;
+  }
+  .workspace-breadcrumb h1 {
+    font-size: 17px !important;
+    max-width: 46vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .demo-indicator {
+    display: none !important;
+  }
+  .topbar-actions {
+    gap: 0;
+    flex: none;
+  }
+  .crm-topbar .icon-button,
+  .crm-topbar .user-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .crm-main {
+    padding: 16px 14px calc(84px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .crm-mobile-nav {
+    padding: 4px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .crm-mobile-nav button {
+    position: relative;
+    min-width: 0;
+    min-height: 52px;
+    padding: 4px 2px;
+    gap: 3px;
+  }
+  .crm-mobile-nav button span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobile-nav-note {
+    position: absolute;
+    top: 4px;
+    left: calc(50% + 4px);
+    margin: 0;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--alert, #b3261e);
+    color: #fffdf9;
+    font-size: 9px;
+    font-weight: 800;
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .mobile-menu-panel {
+    width: min(320px, 88vw);
+    height: 100dvh;
+    padding: calc(16px + env(safe-area-inset-top)) 14px calc(20px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+  }
+  .mobile-nav-group button {
+    min-height: 48px;
+  }
+
+  .account-menu {
+    position: fixed;
+    top: calc(60px + env(safe-area-inset-top));
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-height: calc(100dvh - 96px - env(safe-area-inset-bottom));
+    overflow: auto;
+  }
+
+  .module-intro {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .module-intro > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .module-intro h2 {
+    font-size: clamp(26px, 8vw, 34px);
+    max-width: 16ch;
+  }
+  .module-vector {
+    width: 64px;
+    height: 40px;
+  }
+
+  .overview-focus {
+    grid-template-columns: 1fr !important;
+  }
+  .module-toolbar,
+  .kanban-toolbar,
+  .panel-heading,
+  .record-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .module-search,
+  .module-filter,
+  .kanban-toolbar .dcf-button,
+  .module-toolbar .dcf-button {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .dcf-button,
+  .module-filter,
+  .pipe-stepper-nav button {
+    min-height: 44px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .kanban-page > .pipe-mobile,
+  .kanban-page > div:last-child {
+    display: block !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding-right: 0 !important;
+  }
+  .kanban-column,
+  .pipe-mobile .kanban-column,
+  .kanban-page > div:last-child > div {
+    flex: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    box-sizing: border-box;
+  }
+  .pipe-stepper {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    margin: 0 0 10px;
+    padding: 8px 0 10px;
+    background: color-mix(in srgb, var(--bg-page) 92%, transparent);
+    backdrop-filter: blur(8px);
+  }
+  .pipe-stepper-nav {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+  }
+  .pipe-stepper-nav strong,
+  .pipe-stepper-nav span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pipe-track button {
+    height: 28px;
+    min-height: 28px;
+  }
+  .pipe-card-head {
+    flex-wrap: wrap;
+  }
+  .pipe-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .lead-card-footer {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .crm-main:has(.wa-inbox) {
+    padding: 0 !important;
+    overflow: hidden;
+  }
+  .wa-inbox {
+    height: calc(100dvh - 56px - env(safe-area-inset-top) - 72px - env(safe-area-inset-bottom));
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  body[data-wa-thread='open'] .wa-inbox {
+    height: calc(100dvh - 56px - env(safe-area-inset-top));
+  }
+  .wa-inbox > .module-workspace {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 12px;
+  }
+  .wa-list header > button[aria-controls='wa-conversation-items'] {
+    display: none;
+  }
+  .wa-list-tools {
+    flex-wrap: nowrap;
+  }
+  .wa-convo-meta {
+    flex-wrap: wrap;
+  }
+  .wa-convo-meta span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .wa-head-menu {
+    max-height: min(60dvh, 420px);
+    overflow: auto;
+  }
+  .wa-head-menu .wa-pill {
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 44px;
+  }
+  .wa-composer {
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .wa-quick {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .workspace-dialog-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .workspace-dialog,
+  .module-record-dialog {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: min(92dvh, 100%);
+    border-radius: 18px 18px 0 0;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+  .dcf-drawer {
+    width: 100%;
+    padding-top: calc(16px + env(safe-area-inset-top));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .dcf-toasts {
+    left: 12px;
+    right: 12px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    width: auto;
+  }
+  .offline-badge {
+    left: 12px;
+    right: 12px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+  .floating-foundry {
+    right: 12px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+  .foundry-daily-panel {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    bottom: calc(146px + env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 220px - env(safe-area-inset-bottom));
+  }
+  .foundry-daily-tip {
+    display: none;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .overview-kpis,
+  .module-summary-grid,
+  .blog-post-grid,
+  .ops-kpis {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .workspace-breadcrumb h1 {
+    max-width: 32vw;
+    font-size: 15px !important;
+  }
+  .crm-mobile-nav button {
+    font-size: 9px;
+  }
+  .wa-day-filters button {
+    font-size: 12px;
+    padding-inline: 4px;
+  }
+}

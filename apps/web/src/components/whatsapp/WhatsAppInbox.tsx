@@ -87,6 +87,7 @@ export function WhatsAppChatWorkspace({
   const [panelCollapsed, setPanelCollapsed] = useState(() => localStorage.getItem('dcfoundry.wa.panel') === '1');
   const [panelDrawer, setPanelDrawer] = useState(false);
   const [wide, setWide] = useState(() => window.matchMedia('(min-width: 1440px)').matches);
+  const [phone, setPhone] = useState(() => window.matchMedia('(max-width: 859px)').matches);
   const [foundry, setFoundry] = useState<{ paused: boolean; revision: number; summary: string | null } | null>(null);
   const [foundryBusy, setFoundryBusy] = useState(false);
   const [foundryError, setFoundryError] = useState('');
@@ -208,6 +209,7 @@ export function WhatsAppChatWorkspace({
     const mobile = window.matchMedia('(max-width: 859px)');
     const sync = () => {
       setWide(media.matches);
+      setPhone(mobile.matches);
       document.body.dataset.waThread = mobile.matches && selected ? 'open' : '';
     };
     sync();
@@ -369,14 +371,14 @@ export function WhatsAppChatWorkspace({
           <PreparedMessage user={user} leads={leads} embedded />
         </Suspense>
       ) : (
-        <div className="wa-grid" data-collapsed={listCollapsed} data-panel={wide ? !panelCollapsed : panelDrawer}>
+        <div className="wa-grid" data-collapsed={phone ? false : listCollapsed} data-panel={wide ? !panelCollapsed : panelDrawer}>
           <ConversationList
             rows={rows}
             selected={selected}
             query={query}
             status={status}
             day={day}
-            collapsed={listCollapsed}
+            collapsed={phone ? false : listCollapsed}
             sessionLabel={`${connected ? 'via Baileys · conectado' : 'via Baileys · desconectado'}${online ? '' : ''}`}
             now={now}
             onQuery={setQuery}

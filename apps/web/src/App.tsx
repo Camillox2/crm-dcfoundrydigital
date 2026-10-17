@@ -31,6 +31,7 @@ import './workspace.css';
 import './modules.css';
 import './operations.css';
 import './agency.css';
+import './mobile.css';
 import { downloadCsv } from './components/modules/useModule.js';
 import { LeadExtras } from './components/modules/LeadExtras.js';
 import { LeadFoundry } from './components/modules/FoundryControls.js';

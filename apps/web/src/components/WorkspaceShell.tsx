@@ -316,6 +316,9 @@ export function WorkspaceShell({
                 onClick={() => onNavigate(item.id)}
               >
                 <Icon size={20} />
+                {item.id === 'whatsapp' && waUnread > 0 && (
+                  <b className="mobile-nav-note">{waUnread > 99 ? '99+' : waUnread}</b>
+                )}
                 <span>
                   {item.id === 'dashboard'
                     ? 'Início'
