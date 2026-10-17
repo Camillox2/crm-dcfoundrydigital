@@ -278,7 +278,8 @@
 
 .crm-main:has(.wa-inbox) {
   overflow: hidden;
-  padding: 0 !important;
+  padding: 16px !important;
+  background: var(--bg-page);
 }
 .crm-main:has(.wa-inbox) > div {
   max-width: none !important;
@@ -299,9 +300,13 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 0;
+  min-height: 420px;
   min-width: 0;
-  background: var(--bg-page);
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 .wa-inbox > .wa-connection {
   flex: none;
@@ -361,9 +366,14 @@
   border-right: 1px solid var(--border-default);
   overflow: hidden;
 }
+.wa-list {
+  background: var(--bg-subtle);
+}
 .wa-thread {
   border-right: 0;
-  background: var(--bg-page);
+  background:
+    radial-gradient(circle at 12px 12px, var(--border-default) 1px, transparent 1.6px) 0 0 / 22px 22px,
+    var(--bg-page);
 }
 .wa-list header,
 .wa-convo-head,
@@ -488,7 +498,8 @@
   grid-template-columns: 1fr 1fr;
   padding: 3px;
   border-radius: 999px;
-  background: var(--bg-subtle);
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
 }
 .wa-tab-thumb {
   position: absolute;
@@ -497,18 +508,18 @@
   left: 3px;
   width: calc(50% - 3px);
   border-radius: 999px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
+  background: #102a4c;
+  box-shadow: none;
   transform: translateX(0);
-  transition: transform 180ms ease;
+  transition: transform 380ms var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
   pointer-events: none;
 }
 .wa-status-tabs[data-status='closed'] .wa-tab-thumb {
   transform: translateX(100%);
 }
 .wa-status-tabs button[aria-selected='true'] {
-  color: var(--text-primary);
-  font-weight: 700;
+  color: #fffdf9;
+  font-weight: 800;
 }
 .wa-list-scroll,
 .wa-thread-scroll,
@@ -534,17 +545,17 @@
   cursor: pointer;
 }
 .wa-list-scroll > button.is-selected {
-  background: var(--bg-selected);
+  background: #eef4fc;
 }
 .wa-list-scroll > button.is-selected::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
+  top: 0;
+  bottom: 0;
   width: 4px;
-  border-radius: 4px;
-  background: var(--brand-primary);
+  border-radius: 0;
+  background: #1d5fae;
 }
 .wa-list .contact-avatar,
 .wa-convo-id .contact-avatar {
@@ -712,8 +723,13 @@
 .wa-system {
   align-self: center;
   margin: 8px 0;
-  color: var(--text-muted);
-  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
   text-align: center;
 }
 .wa-message-block {
@@ -726,24 +742,26 @@
   max-width: min(78%, 40rem);
   align-self: flex-start;
   margin: 0;
-  padding: 8px 12px;
-  border: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--border-default) 85%, transparent);
   background: var(--bg-card);
   color: var(--text-primary);
   border-radius: 4px 16px 16px 16px;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-sm);
   overflow-wrap: anywhere;
 }
 .wa-thread .wa-bubble.is-out {
   align-self: flex-end;
-  background: var(--brand-primary);
-  color: #fff;
+  background: #102a4c;
+  color: #fffdf9;
+  border-color: #102a4c;
   border-radius: 16px 4px 16px 16px;
 }
 .wa-thread .wa-bubble.is-foundry {
-  background: var(--status-success-soft);
-  color: var(--text-primary);
-  border: 1px solid var(--status-success-bg);
+  background: #dce9f8;
+  color: #102a4c;
+  border: 1px solid #b9d2f0;
+  border-radius: 16px 4px 16px 16px;
 }
 .wa-thread .wa-bubble.is-historical {
   opacity: 0.78;
@@ -903,8 +921,27 @@
   margin: 0;
 }
 .wa-banner.is-warn {
-  background: #fff4d6;
-  color: #7a4e00;
+  background: var(--wait-surface, #fdf3e3);
+  color: var(--wait, #7a4e00);
+  border-top-color: #f0d6a8;
+}
+[data-theme='dark'] .wa-tab-thumb {
+  background: #1d5fae;
+}
+[data-theme='dark'] .wa-status-tabs button[aria-selected='true'] {
+  color: #fffdf9;
+}
+[data-theme='dark'] .wa-list-scroll > button.is-selected {
+  background: #16324a;
+}
+[data-theme='dark'] .wa-thread .wa-bubble.is-out {
+  background: #1d5fae;
+  border-color: #1d5fae;
+}
+[data-theme='dark'] .wa-thread .wa-bubble.is-foundry {
+  background: #16324a;
+  color: #f2f6fa;
+  border-color: #2d6694;
 }
 .wa-file-card,
 .wa-recording,
@@ -963,9 +1000,10 @@
 .wa-send {
   border: 0;
   border-radius: 12px;
-  background: var(--brand-primary);
-  color: #fff;
+  background: #1d5fae;
+  color: #fffdf9;
   cursor: pointer;
+  box-shadow: 0 14px 28px -14px rgba(29, 95, 174, 0.75);
 }
 .wa-send:disabled {
   opacity: 0.45;

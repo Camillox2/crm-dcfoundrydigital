@@ -1,4 +1,4 @@
-import { Archive, ArrowRight, Eye, FileSignature, GripVertical, MessageSquare, RotateCcw } from 'lucide-react';
+import { Archive, ArrowRight, Eye, FileSignature, GripVertical, MessageSquare, RotateCcw, Sparkles } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@dcfoundry/ui';
@@ -47,7 +47,7 @@ export function PipelineCard({
       className={`lead-card pipe-card${isDragging ? ' is-dragging' : ''}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      <div className="lead-card-person">
+      <div className="pipe-card-head">
         {canDrag && (
           <button
             type="button"
@@ -60,13 +60,18 @@ export function PipelineCard({
           </button>
         )}
         <ContactAvatar name={lead.name} photoUrl={lead.avatarUrl} index={index} />
-        <span>
-          <h3>{lead.name}</h3>
-          <small>{lead.company}</small>
-        </span>
+        <h3>{lead.name}</h3>
+        <span className="pipe-chip">{lead.modality === 'Retainer Mensal' ? 'Retainer' : 'Projeto'}</span>
       </div>
-      {lead.highPriority && <Badge tone="warm">Prioridade</Badge>}
-      <p className="pipe-summary">{summary}</p>
+      <p className="pipe-interest">
+        <strong>{lead.company}</strong>
+        <span className="pipe-temp">{lead.temperature}</span>
+        {lead.highPriority && <Badge tone="warm">Prioridade</Badge>}
+      </p>
+      <p className="pipe-ai">
+        <Sparkles size={12} aria-hidden="true" />
+        <span className="pipe-summary">{summary}</span>
+      </p>
       <div className="lead-tag-list">
         {lead.tags?.map((tag) => (
           <span key={tag.id} style={{ borderColor: tag.color }}>

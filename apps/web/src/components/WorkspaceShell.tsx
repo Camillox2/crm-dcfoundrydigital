@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
   BarChart3,
   BookOpen,
@@ -99,6 +99,7 @@ export function WorkspaceShell({
   page,
   user,
   collapsed,
+  waUnread = 0,
   mobileOpen,
   accountOpen,
   onCollapse,
@@ -112,6 +113,7 @@ export function WorkspaceShell({
   page: WorkspacePage;
   user: AuthenticatedSession;
   collapsed: boolean;
+  waUnread?: number;
   mobileOpen: boolean;
   accountOpen: boolean;
   onCollapse: () => void;
@@ -123,6 +125,29 @@ export function WorkspaceShell({
   children: ReactNode;
 }) {
   const { theme, toggleTheme } = useTheme();
+  const navRef = useRef<HTMLDivElement>(null);
+  const [glider, setGlider] = useState({ y: 0, h: 0, ready: false });
+  useLayoutEffect(() => {
+    const measure = () => {
+      const nav = navRef.current;
+      const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+      if (!nav || !active || collapsed) return;
+      const navBox = nav.getBoundingClientRect();
+      const box = active.getBoundingClientRect();
+      setGlider((current) => ({
+        y: box.top - navBox.top,
+        h: box.height,
+        ready: current.ready,
+      }));
+    };
+    measure();
+    const frame = requestAnimationFrame(() => setGlider((current) => ({ ...current, ready: true })));
+    window.addEventListener('resize', measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', measure);
+    };
+  }, [page, collapsed, mobileOpen]);
   const nameParts = user.fullName.split(' ');
   const shortName = `${nameParts[0]} ${nameParts.length > 1 ? nameParts.at(-1) : ''}`.trim();
   const navButton = (item: (typeof allNavigation)[number], mobile = false) => {
@@ -141,6 +166,11 @@ export function WorkspaceShell({
       >
         <Icon size={18} />
         {(!collapsed || mobile) && <span>{item.label}</span>}
+        {item.id === 'whatsapp' && waUnread > 0 && (
+          <b className="nav-note" aria-label={`${waUnread} conversas não lidas`}>
+            {collapsed && !mobile ? null : waUnread > 99 ? '99+' : waUnread}
+          </b>
+        )}
       </button>
     );
   };
@@ -167,7 +197,14 @@ export function WorkspaceShell({
               <kbd>Ctrl+K</kbd>
             </button>
           )}
-          <div className="sidebar-groups">
+          <div className="sidebar-groups" ref={navRef}>
+            {!collapsed && (
+              <span
+                className={`sidebar-glider${glider.ready ? ' is-ready' : ''}`}
+                style={{ transform: `translateY(${glider.y}px)`, height: glider.h || undefined }}
+                aria-hidden="true"
+              />
+            )}
             {navigation
               .filter((group) => group.items.some((item) => canNavigate(user, item.id)))
               .map((group) => (

@@ -28,7 +28,7 @@ self.addEventListener('notificationclick', (event) => {
     }),
   );
 });
-const STATIC_CACHE = 'dc-foundry-static-v2';
+const STATIC_CACHE = 'dc-foundry-static-v3';
 const STATIC_PATHS = [
   '/offline.html',
   '/app-icon-192.png',

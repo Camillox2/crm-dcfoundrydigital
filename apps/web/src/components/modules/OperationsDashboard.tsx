@@ -344,7 +344,7 @@ export function OperationsDashboard({
       } as Record<string, string>
     )[exportView] ?? 'Exportar série';
   return (
-    <div className="ops-dashboard">
+    <div className="ops-dashboard view-stage">
       <SlaPanel user={user}/>
       <section className="ops-heading">
         <div>

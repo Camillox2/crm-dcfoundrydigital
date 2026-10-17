@@ -174,7 +174,15 @@ export function PipelineBoard({
           />
         ))}
       </div>
-      <DragOverlay>{active ? <div className="pipe-overlay">{active.name}</div> : null}</DragOverlay>
+      <DragOverlay>
+        {active ? (
+          <article className="pipe-card pipe-overlay">
+            <h3>{active.name}</h3>
+            <p>{active.company}</p>
+            <strong>{brl(active.monthlyValue)}</strong>
+          </article>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

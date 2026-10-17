@@ -78,7 +78,7 @@ export function Overview<T extends OverviewLead>({
     },
   ];
   return (
-    <div className="overview" data-paused={paused}>
+    <div className="overview view-stage" data-paused={paused}>
       <section className="workspace-welcome">
         <div>
           <h2>

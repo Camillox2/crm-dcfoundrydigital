@@ -21,7 +21,7 @@
   flex: 1;
   background: var(--bg-card);
   border: 1px solid var(--border-default);
-  border-radius: 7px;
+  border-radius: 10px;
   color: var(--text-muted);
 }
 .module-search input {

@@ -109,7 +109,8 @@ const AgendaWorkspace = lazy(() =>
 export function App() {
   const [user, setUser] = useState<AuthenticatedSession | null>(null);
   const [page, setPage] = useState<WorkspacePage>('dashboard');
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('dcfoundry.shell.collapsed') === '1');
+  const [waUnread, setWaUnread] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -149,6 +150,14 @@ export function App() {
   useEffect(() => {
     document.getElementById('workspace-main')?.scrollTo({ top: 0 });
   }, [page]);
+  useEffect(() => {
+    const onUnread = (event: Event) => {
+      const total = (event as CustomEvent<number>).detail;
+      setWaUnread(typeof total === 'number' ? total : 0);
+    };
+    window.addEventListener('crm:wa-unread', onUnread);
+    return () => window.removeEventListener('crm:wa-unread', onUnread);
+  }, []);
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
@@ -265,9 +274,16 @@ export function App() {
       page={page}
       user={user}
       collapsed={collapsed}
+      waUnread={waUnread}
       mobileOpen={mobileOpen}
       accountOpen={accountOpen}
-      onCollapse={() => setCollapsed((value) => !value)}
+      onCollapse={() =>
+        setCollapsed((value) => {
+          const next = !value;
+          localStorage.setItem('dcfoundry.shell.collapsed', next ? '1' : '0');
+          return next;
+        })
+      }
       onMobile={setMobileOpen}
       onAccount={() => setAccountOpen((value) => !value)}
       onSearch={showSearch}
@@ -283,16 +299,7 @@ export function App() {
     >
       <main className="crm-main" id="workspace-main">
         <div>
-          <AnimatePresence mode="wait">
-            <motion.div
-              className="crm-page"
-              data-page={page}
-              key={page}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-            >
+            <div className="crm-page view-stage" data-page={page} key={page}>
               <ModuleIntro page={page} />
               {workspace.error && (
                 <div className="workspace-notice" role="status">
@@ -311,7 +318,7 @@ export function App() {
                   </>
                 )}
                 {page === 'kanban' && (
-                  <div className="kanban-page">
+                  <div className="kanban-page view-stage">
                     {resolveGrantedScope(user.roles, 'lead:create') && (
                       <LeadImport
                         user={user}
@@ -454,8 +461,7 @@ export function App() {
                 )}
                 {page === 'agenda' && <AgendaWorkspace user={user} leads={workspace.leads} />}
               </Suspense>
-            </motion.div>
-          </AnimatePresence>
+            </div>
         </div>
       </main>
       <FloatingFoundry

@@ -17,16 +17,80 @@
   font-variant-numeric: tabular-nums;
 }
 .kanban-column.is-over {
-  outline: 2px solid var(--brand-primary);
-  outline-offset: -2px;
+  background: var(--bg-selected);
+  outline: 2px dashed #8fb8e8;
+  outline-offset: -4px;
 }
 .pipe-card {
   background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-sm);
 }
 .pipe-card.is-dragging {
-  opacity: 0.45;
+  opacity: 0.35;
+}
+.pipe-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.pipe-card-head h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+.pipe-chip,
+.pipe-temp {
+  flex: none;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+.pipe-interest {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.pipe-interest strong {
+  color: var(--text-primary);
+}
+.pipe-temp {
+  margin-left: 6px;
+  border-radius: 4px;
+  background: #eef4fc;
+  color: #102a4c;
+}
+.pipe-ai {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: #eef4fc;
+  color: #174d8f;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.pipe-ai svg {
+  flex: none;
+  margin-top: 2px;
+}
+.pipe-ai .pipe-summary {
+  margin: 0;
+  min-width: 0;
+}
+[data-theme='dark'] .pipe-ai,
+[data-theme='dark'] .pipe-temp {
+  background: #16324a;
+  color: #dce9f8;
 }
 .pipe-handle {
   width: 40px;
@@ -50,18 +114,25 @@
   gap: 6px;
 }
 .pipe-actions button {
-  min-width: 40px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-page);
-  color: var(--text-primary);
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
   cursor: pointer;
 }
+.pipe-actions button:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
 .pipe-move select {
   width: 100%;
   border-radius: 10px;
