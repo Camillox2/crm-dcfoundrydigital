@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../session.js';
 import { useCallback, useEffect, useState } from 'react';
 import type { ModuleKind, WorkspaceDocument } from '@dcfoundry/shared';
 import type { AuthenticatedSession } from '../../pages/LoginPage.js';
@@ -9,7 +10,7 @@ export function useCrmApi(user: AuthenticatedSession) {
         throw new Error(
           'Entre com o administrador do seu workspace para salvar. Esta prévia é somente visual.',
         );
-      const response = await fetch(path, {
+      const response = await sessionFetch(path, {
         ...init,
         headers: {
           ...(init?.body ? { 'Content-Type': 'application/json' } : {}),

@@ -3,6 +3,8 @@ import { motion, useMotionValue, useReducedMotion } from 'framer-motion';
 
 export type FoundryMood = 'happy' | 'thinking' | 'invite' | 'alert' | 'sleepy';
 
+// Ported from DC-Foundry-Digital/web/src/components/public/Chat/FoundryMascot.tsx.
+// Keep the original silhouette, gradients, face, cursor tracking and wave together.
 export function FoundryMascot({
   size = 42,
   mood = 'happy',
@@ -37,13 +39,11 @@ export function FoundryMascot({
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (isSleepy) {
+    if (isSleepy || reduced || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
       pupilX.set(0);
       pupilY.set(0);
       return;
     }
-    if (reduced || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-
     let raf = 0;
     const onMove = (e: MouseEvent) => {
       if (raf) return;
@@ -75,7 +75,7 @@ export function FoundryMascot({
       style={{ width: size, height: size }}
       animate={
         reduced
-          ? {}
+          ? { y: 0, rotate: 0 }
           : {
               y: isSleepy
                 ? [0, -1, 0]
@@ -87,11 +87,15 @@ export function FoundryMascot({
               rotate: expressiveMood === 'thinking' ? [0, 1.5, -1.5, 0] : isSleepy ? [0, 2, 0] : 0,
             }
       }
-      transition={{
-        duration: isSleepy ? 4.5 : expressiveMood === 'invite' ? 1.8 : 2.8,
-        repeat: Infinity,
-        ease: 'easeInOut',
-      }}
+      transition={
+        reduced
+          ? { duration: 0 }
+          : {
+              duration: isSleepy ? 4.5 : expressiveMood === 'invite' ? 1.8 : 2.8,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }
+      }
       aria-hidden="true"
     >
       {wave && (

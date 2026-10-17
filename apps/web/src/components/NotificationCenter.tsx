@@ -1,3 +1,4 @@
+import { sessionFetch } from '../session.js';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { Bell, Check, Smartphone, X } from 'lucide-react';
 import type { WorkspacePage } from '@dcfoundry/shared';
@@ -8,7 +9,7 @@ export async function removeBrowserPush(user: AuthenticatedSession) {
   const registration = await navigator.serviceWorker.getRegistration(),
     subscription = await registration?.pushManager.getSubscription();
   if (subscription) {
-    await fetch('/api/v1/notifications/push', {
+    await sessionFetch('/api/v1/notifications/push', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + user.accessToken },
       body: JSON.stringify({ endpoint: subscription.endpoint }),

@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../session.js';
 import { useCallback, useEffect, useState } from 'react';
 import { Paperclip, Tags, Download } from 'lucide-react';
 import { Button } from '@dcfoundry/ui';
@@ -82,7 +83,7 @@ export function LeadExtras({ user, leadId }: { user: AuthenticatedSession; leadI
   const download = async (id: string, name: string) => {
     setError('');
     try {
-      const response = await fetch(`/api/v1/leads/${leadId}/attachments/${id}`, {
+      const response = await sessionFetch(`/api/v1/leads/${leadId}/attachments/${id}`, {
         headers: { Authorization: `Bearer ${user.accessToken}` },
       });
       if (!response.ok) throw Error('Anexo indisponível.');

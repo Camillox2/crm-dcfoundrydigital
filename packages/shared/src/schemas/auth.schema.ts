@@ -4,6 +4,7 @@ import { RoleSchema } from '../rbac.js';
 export const LoginInputSchema = z.object({
   email: z.string().email('Informe um e-mail corporativo válido.'),
   password: z.string().min(8, 'A senha deve possuir no mínimo 8 caracteres.'),
+  remember: z.boolean().default(true),
   totpCode: z
     .string()
     .regex(/^\d{6}$/, 'O código 2FA (TOTP) deve conter 6 dígitos.')

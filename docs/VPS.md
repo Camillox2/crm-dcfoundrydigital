@@ -14,7 +14,7 @@ A suíte usa Baileys, Gemini, SMTP, push e Google simulados. Ela não confirma p
 
 ## Instalação limpa
 
-Requisitos: Docker/Compose, Node 22 atualizado, Corepack/pnpm 10.6, domínio do CRM com DNS para a VPS. O domínio público do site continua sendo dcfoundrydigital.com; use um subdomínio próprio para o CRM.
+Requisitos: Docker/Compose, Node 22 atualizado, Corepack/pnpm 10.26.0, domínio do CRM com DNS para a VPS. O domínio público do site continua sendo dcfoundrydigital.com; use um subdomínio próprio para o CRM.
 
 1. Copie `.env.example` para `.env`, fora do Git. Preencha os valores básicos da tabela abaixo.
 2. Na raiz do repositório:
@@ -33,7 +33,7 @@ docker compose --env-file .env -f infra/docker-compose.yml --profile whatsapp up
 
 O seed cria os papéis e o funil com sete etapas, sem clientes, campanhas, contratos ou posts fictícios. O administrador é criado separadamente. Remova `CRM_ADMIN_PASSWORD` do ambiente depois do bootstrap. A senha não é impressa nem sobrescreve uma conta existente.
 
-Verifique `docker compose --env-file .env -f infra/docker-compose.yml ps`, `docker stats`, a saúde `https://SEU_CRM/api/v1/health` e o login pelo domínio. A sessão JWT dura 15 minutos e fica em memória no navegador; entre novamente quando expirar.
+Verifique `docker compose --env-file .env -f infra/docker-compose.yml ps`, `docker stats`, a saúde `https://SEU_CRM/api/v1/health` e o login pelo domínio. O token JWT dura 15 minutos e fica em memória. A renovação usa cookie HttpOnly/Secure e uma credencial armazenada como hash no PostgreSQL: até 30 dias com “Manter conectado” ou uma sessão do navegador limitada a 8 horas sem essa opção. Sair revoga a renovação. Publique API e web juntas para habilitar esse fluxo.
 
 ## Variáveis para configurar na VPS
 

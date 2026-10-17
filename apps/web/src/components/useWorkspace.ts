@@ -1,3 +1,4 @@
+import { sessionFetch } from '../session.js';
 import { useCallback, useEffect, useState } from 'react';
 import {
   resolveGrantedScope,
@@ -32,7 +33,7 @@ export function useWorkspace(user: AuthenticatedSession | null) {
     async (url: string, init?: RequestInit) => {
       if (!user?.accessToken || user.preview)
         throw new Error('Configure a API e o administrador no VPS para salvar contatos reais.');
-      const response = await fetch(url, {
+      const response = await sessionFetch(url, {
         ...init,
         headers: {
           'Content-Type': 'application/json',

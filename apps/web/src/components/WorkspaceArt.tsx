@@ -6,7 +6,7 @@ import { FoundryMascot, useTheme } from '@dcfoundry/ui';
 export function WorkspaceArt({ paused = false }: { paused?: boolean }) {
   const { prefersReducedMotion } = useTheme();
   return (
-    <div className="workspace-art" aria-hidden="true" data-reduced={prefersReducedMotion}>
+    <div className="workspace-art" aria-hidden="true" data-paused={prefersReducedMotion || paused}>
       <svg className="workspace-orbit" viewBox="0 0 480 255" fill="none">
         <ellipse cx="242" cy="135" rx="195" ry="82" transform="rotate(-14 242 135)" />
         <ellipse
@@ -40,6 +40,7 @@ export function WorkspaceArt({ paused = false }: { paused?: boolean }) {
         <circle cx="33" cy="13" r="2" />
         <path d="M17 43h34m-34 12h24m-24 12h29m20 22 21-22 20 10 29-31 14 14" />
         <rect x="65" y="37" width="83" height="57" rx="3" />
+        <path className="art-cursor" d="m128 70 2 18 5-6 7 2Z" fill="#246ba5" />
       </svg>
       <div className="art-code">
         <Code2 />
@@ -48,7 +49,7 @@ export function WorkspaceArt({ paused = false }: { paused?: boolean }) {
         <span />
       </div>
       <div className="art-foundry">
-        <FoundryMascot size={114} paused={prefersReducedMotion || paused} />
+        <FoundryMascot size={114} wave paused={prefersReducedMotion || paused} />
       </div>
     </div>
   );

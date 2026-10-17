@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 export interface DcLogoProps {
   size?: number;
@@ -8,11 +8,7 @@ export interface DcLogoProps {
   logoSrc?: string;
 }
 
-/**
- * Componente oficial de marca do DC Foundry Digital CRM,
- * usando a logo oficial (/logosemfundonova.png de dcfoundrydigital.com)
- * com fallback vetorial de alta precisão caso o asset não esteja carregado.
- */
+/** Original DC monogram and the same wordmark used by dcfoundrydigital.com. */
 export const DcLogo: React.FC<DcLogoProps> = ({
   size = 40,
   showText = true,
@@ -20,48 +16,25 @@ export const DcLogo: React.FC<DcLogoProps> = ({
   className = '',
   logoSrc = '/logosemfundonova.png',
 }) => {
-  const [imgError, setImgError] = useState(false);
-
   return (
-    <div className={`dcf-logo ${className}`} style={{ fontFamily: 'var(--font-display)' }}>
-      {!imgError ? (
+    <div
+      className={`dcf-logo ${className}`}
+      aria-label="DC Foundry Digital"
+      style={{ fontFamily: 'var(--font-sans)' }}
+    >
+      <span className="dcf-logo-symbol" style={{ width: size, height: size }}>
         <img
           src={logoSrc}
-          alt="DC Foundry Digital"
+          alt={showText ? '' : 'DC Foundry Digital'}
           width={size}
           height={size}
-          onError={() => setImgError(true)}
           style={{
-            width: size,
-            height: size,
+            width: '100%',
+            height: '100%',
             objectFit: 'contain',
           }}
         />
-      ) : (
-        <svg
-          width={size}
-          height={size}
-          viewBox="0 0 64 64"
-          role="img"
-          aria-label="DC Foundry Digital"
-        >
-          <path
-            d="M10 14 H28 A18 18 0 0 1 46 32 A18 18 0 0 1 28 50 H10 V22 M18 22 V42 H27 A10 10 0 0 0 37 32 A10 10 0 0 0 27 22 Z"
-            fill="none"
-            stroke="#0047FF"
-            strokeWidth="4.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M54 21 A16 16 0 0 0 32 32 A16 16 0 0 0 54 43"
-            fill="none"
-            stroke="#0047FF"
-            strokeWidth="4.5"
-            strokeLinecap="round"
-          />
-        </svg>
-      )}
+      </span>
 
       {showText && (
         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
@@ -73,7 +46,7 @@ export const DcLogo: React.FC<DcLogoProps> = ({
               color: 'inherit',
             }}
           >
-            DCFoundry<span style={{ color: 'var(--brand-primary)' }}>Digital</span>
+            Foundry<span className="dcf-logo-accent"> Digital</span>
           </span>
           {subtitle && (
             <span

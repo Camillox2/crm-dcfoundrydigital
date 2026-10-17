@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../session.js';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Download, FileText, RefreshCw } from 'lucide-react';
 import type { AuthenticatedSession } from '../../pages/LoginPage.js';
@@ -57,7 +58,7 @@ export function MessageMedia({
     setError('');
     void (async () => {
       try {
-        const response = await fetch(`${path}/messages/${message.id}/media`, {
+        const response = await sessionFetch(`${path}/messages/${message.id}/media`, {
           headers: { Authorization: `Bearer ${user.accessToken}` },
           signal: controller.signal,
         });
