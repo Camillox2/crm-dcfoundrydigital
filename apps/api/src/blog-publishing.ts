@@ -79,7 +79,7 @@ export async function flushBlogOutbox(
           'UPDATE workspace_blog_outbox SET delivered_at=now(),attempts=attempts+1,last_error=NULL WHERE id=$1',
           [row.id],
         );
-        await client.query("UPDATE workspace_documents SET sync_status='delivered' WHERE id=$1", [
+        await client.query("UPDATE agency_blog_posts SET sync_status='delivered' WHERE id=$1", [
           row.document_id,
         ]);
         delivered++;
@@ -88,7 +88,7 @@ export async function flushBlogOutbox(
           "UPDATE workspace_blog_outbox SET attempts=attempts+1,next_attempt_at=now()+make_interval(secs=>LEAST(3600,30*power(2,LEAST(attempts,7)))::integer),last_error='Falha na entrega. Nova tentativa agendada.' WHERE id=$1",
           [row.id],
         );
-        await client.query("UPDATE workspace_documents SET sync_status='retry' WHERE id=$1", [
+        await client.query("UPDATE agency_blog_posts SET sync_status='retry' WHERE id=$1", [
           row.document_id,
         ]);
       }

@@ -4,6 +4,7 @@ import { Button } from '@dcfoundry/ui';
 import { resolveGrantedScope } from '@dcfoundry/shared';
 import type { AuthenticatedSession } from '../../pages/LoginPage.js';
 import { useCrmApi } from './useModule.js';
+import { LeadAttribution } from './LeadAttribution.js';
 export function LeadExtras({ user, leadId }: { user: AuthenticatedSession; leadId: string }) {
   const request = useCrmApi(user),
     [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]),
@@ -155,6 +156,7 @@ export function LeadExtras({ user, leadId }: { user: AuthenticatedSession; leadI
           }}
         />
       </label>
+      <LeadAttribution key={leadId} user={user} leadId={leadId} />
       {error && <p role="alert">{error}</p>}
     </section>
   );

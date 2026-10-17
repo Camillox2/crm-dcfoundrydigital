@@ -29,6 +29,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { DcLogo, useTheme } from '@dcfoundry/ui';
 import { resolveGrantedScope, type WorkspacePage, type PermissionKey } from '@dcfoundry/shared';
 import { NotificationCenter } from './NotificationCenter.js';
+import { PwaInstall } from './PwaInstall.js';
 import type { AuthenticatedSession } from '../pages/LoginPage.js';
 
 export const navigation = [
@@ -71,7 +72,7 @@ const pageReadPermission: Record<WorkspacePage, PermissionKey> = {
   contracts: 'contract:read',
   finance: 'finance:read',
   whatsapp: 'whatsapp:read',
-  site_chat:'whatsapp:read',
+  site_chat: 'whatsapp:read',
   portal: 'task:read',
   ai_console: 'ai_agent:read',
   marketing: 'marketing_ads:read',
@@ -209,6 +210,7 @@ export function WorkspaceShell({
             <h1>{allNavigation.find((item) => item.id === page)?.label}</h1>
           </div>
           <div className="topbar-actions">
+            <PwaInstall />
             <NotificationCenter key={user.userId} user={user} onNavigate={onNavigate} />
             <span className="demo-indicator">
               <i />

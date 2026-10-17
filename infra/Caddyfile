@@ -9,7 +9,12 @@
     Strict-Transport-Security "max-age=15552000"
     X-Content-Type-Options "nosniff"
     X-Frame-Options "DENY"
-    Referrer-Policy "strict-origin-when-cross-origin"
+    Referrer-Policy "no-referrer"
+  }
+  @privateDocuments path /portal/* /assinar/*
+  header @privateDocuments {
+    Cache-Control "no-store"
+    X-Robots-Tag "noindex, nofollow"
   }
 
   handle /api/* {

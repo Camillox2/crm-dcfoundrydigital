@@ -19,6 +19,7 @@ import { requireSession, requirePermission } from './plugins/auth.js';
 import { WorkspaceError } from './module-store.js';
 import { ModuleStore } from './module-store.js';
 import { typedModules } from './typed-module-store.js';
+import { persistAttribution } from './lead-import.js';
 
 const permissions: Record<keyof ReportAccess, PermissionKey> = {
   lead: 'lead:read',
@@ -311,6 +312,9 @@ export async function registerReportingRoutes(
         ],
       );
       const id = created.rows[0].id;
+      if (d.email)
+        await client.query('UPDATE workspace_leads SET email=$2 WHERE id=$1', [id, d.email]);
+      await persistAttribution(client, id, d.attribution ?? {});
       await client.query('UPDATE workspace_site_intakes SET lead_id=$2 WHERE id=$1', [
         input.id,
         id,

@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    maxWorkers:2,
     include: ['tests/**/*.test.ts'],
     alias: {
       '@dcfoundry/shared': path.resolve(__dirname, 'packages/shared/src/index.ts'),

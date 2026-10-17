@@ -8,6 +8,7 @@ export const PRESERVED_CONFIGURATION_TABLES = new Set([
   'foundry_settings',
   'company_settings',
   'calendar_settings',
+  'ai_usage_events',
   'crm_schema_migrations',
   '__drizzle_migrations',
 ]);

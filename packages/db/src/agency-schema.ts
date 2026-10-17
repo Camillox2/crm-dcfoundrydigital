@@ -177,6 +177,17 @@ export const proposalAcceptances = pgTable('proposal_acceptances', {
   acceptedAt: timestamp('accepted_at', { withTimezone: true }).notNull().defaultNow(),
 });
 export const workspaceLeads = pgTable('workspace_leads', {
+  email: varchar('email', { length: 254 }).notNull().default(''),
+  utmSource: varchar('utm_source', { length: 200 }).notNull().default(''),
+  utmMedium: varchar('utm_medium', { length: 200 }).notNull().default(''),
+  utmCampaign: varchar('utm_campaign', { length: 200 }).notNull().default(''),
+  utmTerm: varchar('utm_term', { length: 200 }).notNull().default(''),
+  utmContent: varchar('utm_content', { length: 200 }).notNull().default(''),
+  gclid: varchar('gclid', { length: 512 }),
+  adConsent: varchar('ad_consent', { length: 16 }).notNull().default('unknown'),
+  adConsentAt: timestamp('ad_consent_at', { withTimezone: true }),
+  attributionCapturedAt: timestamp('attribution_captured_at', { withTimezone: true }),
+  attributionVersion: integer('attribution_version').notNull().default(1),
   id: uuid('id').defaultRandom().primaryKey(),
   ownerId: uuid('owner_id')
     .notNull()

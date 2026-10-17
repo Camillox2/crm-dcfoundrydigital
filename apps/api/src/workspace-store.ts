@@ -1,5 +1,6 @@
 import type { DatabaseConnectionResult } from '@dcfoundry/db';
 import type { AccessScope, WorkspaceLead, WorkspaceLeadInput } from '@dcfoundry/shared';
+import { persistAttribution } from './lead-import.js';
 
 export interface WorkspaceActor {
   id: string;
@@ -43,11 +44,21 @@ function toLead(row: Record<string, unknown>): WorkspaceLead {
 }
 export class PostgresWorkspaceStore implements WorkspaceStore {
   constructor(private readonly pool: DatabaseConnectionResult['pool']) {}
-  private async change(actorId: string, action: string, sql: string, parameters: unknown[]) {
+  private async change(
+    actorId: string,
+    action: string,
+    sql: string,
+    parameters: unknown[],
+    after?: (
+      client: Pick<DatabaseConnectionResult['pool'], 'query'>,
+      row: Record<string, any>,
+    ) => Promise<void>,
+  ) {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       const result = await client.query(sql, parameters);
+      if (result.rows[0]) await after?.(client, result.rows[0]);
       if (result.rows[0])
         await client.query(
           "INSERT INTO audit_logs(actor_type,actor_id,action,entity_type,entity_id,diff_json) VALUES('user',$1,$2,'lead',$3,$4)",
@@ -87,6 +98,7 @@ export class PostgresWorkspaceStore implements WorkspaceStore {
         input.campaign ?? '',
         input.gclid ?? '',
       ],
+      async (client,row)=>{if(input.email)await client.query('UPDATE workspace_leads SET email=$2 WHERE id=$1',[row.id,input.email]);if(input.attribution)await persistAttribution(client,row.id,input.attribution);},
     );
     return toLead(result.rows[0]);
   }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Button, Card } from '@dcfoundry/ui';
 import { FileSignature, LifeBuoy, Link as LinkIcon } from 'lucide-react';
-import type { WorkspaceLead } from '@dcfoundry/shared';
+import { resolveGrantedScope, type WorkspaceLead } from '@dcfoundry/shared';
 import type { AuthenticatedSession } from './LoginPage.js';
 import { useCrmApi } from '../components/modules/useModule.js';
 import { money } from '../components/modules/ModuleTools.js';
@@ -451,16 +451,23 @@ export function ClientPortalWorkspace({
         )}
         {error && <p role="alert">{error}</p>}
       </Card>
-      {leadId && (
-        <ServiceRequestPanel
-          key={leadId}
-          request={ticketRequest}
-          base={'/api/v1/leads/' + leadId + '/requests'}
-          items={items}
-          onChange={load}
-          staff
-        />
-      )}
+      {leadId &&
+        ['contract:read', 'finance:read', 'task:read'].every(
+          (permission) =>
+            resolveGrantedScope(
+              user.roles,
+              permission as 'contract:read' | 'finance:read' | 'task:read',
+            ) === 'all',
+        ) && (
+          <ServiceRequestPanel
+            key={leadId}
+            request={ticketRequest}
+            base={'/api/v1/leads/' + leadId + '/requests'}
+            items={items}
+            onChange={load}
+            staff
+          />
+        )}
     </>
   );
 }

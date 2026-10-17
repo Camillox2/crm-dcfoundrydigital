@@ -208,8 +208,8 @@ export function SiteWorkspace({
             ))}
           </div>
           <p className="ops-footnote">
-            WhatsApp em modo manual. O pareamento Baileys e os dados de campanhas dependem dos
-            serviços que você conectar no VPS.
+            Confira a conexão e o pareamento na área WhatsApp. A configuração do worker não
+            confirma uma sessão conectada; as métricas de campanhas vêm da integração autenticada.
           </p>
         </Card>
         <Card className="ops-data-card">

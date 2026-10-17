@@ -143,6 +143,13 @@ export async function registerPortalRoutes(
       const p = await pool(),
         lead = await scopedLead(p, req, uuid.parse((req.params as any).id), 'lead:update'),
         token = randomBytes(32).toString('hex');
+      for (const permission of ['contract:read', 'finance:read', 'task:read'] as const) {
+        if (requestActor(req, permission).scope !== 'all')
+          throw new WorkspaceError(
+            403,
+            'A emissão do portal completo exige acesso aos documentos comerciais, financeiros e de atendimento.',
+          );
+      }
       const row = (
         await p.query(
           "INSERT INTO client_portal_links(lead_id,owner_id,token_hash,expires_at) VALUES($1,$2,$3,now()+interval '30 days') RETURNING id,expires_at",

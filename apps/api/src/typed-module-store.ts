@@ -8,6 +8,7 @@ import {
 import type { WorkspaceActor } from './workspace-store.js';
 import { WorkspaceError } from './module-store.js';
 import { seal, unseal } from './private-fields.js';
+import { remainingTypedModules } from './record-tables.js';
 // Only this code-owned registry supplies SQL identifiers. Values remain parameterized.
 export const typedModules: Partial<
   Record<
@@ -19,9 +20,11 @@ export const typedModules: Partial<
       numbers?: string[];
       dates?: string[];
       secrets?: string[];
+      timestamps?: string[];
     }
   >
 > = {
+  ...remainingTypedModules,
   knowledge: {
     table: 'foundry_knowledge',
     fields: { title: 'title', content: 'content', category: 'category', audience: 'audience' },
@@ -74,13 +77,32 @@ export class TypedModuleStore {
         ? unseal(String(value ?? ''))
         : config.numbers?.includes(key)
           ? Number(value)
-          : config.dates?.includes(key)
+          : config.timestamps?.includes(key)
             ? value
-              ? new Date(value).toISOString().slice(0, 10)
+              ? new Date(value).toISOString()
               : ''
-            : value;
+            : config.dates?.includes(key)
+              ? value
+                ? new Date(value).toISOString().slice(0, 10)
+                : ''
+              : value;
     }
+    if (kind === 'conversation') data.messages = row.messages ?? [];
     return data as ModuleData;
+  }
+  private projection(kind: ModuleKind, versions = false) {
+    if (kind !== 'conversation') return '*';
+    const table = this.config(kind).table + (versions ? '_versions' : '');
+    return (
+      "*,COALESCE((SELECT jsonb_agg(jsonb_build_object('role',m.role,'content',m.content) ORDER BY m.position) FROM " +
+      (versions ? 'agency_conversation_version_messages' : 'agency_conversation_messages') +
+      ' m WHERE m.document_id=' +
+      table +
+      '.' +
+      (versions ? 'document_id' : 'id') +
+      (versions ? ' AND m.version=' + table + '.version' : '') +
+      "),'[]'::jsonb) AS messages"
+    );
   }
   private map(kind: ModuleKind, row: Record<string, any>): WorkspaceDocument {
     return {
@@ -93,8 +115,15 @@ export class TypedModuleStore {
       archivedAt: row.archived_at ? new Date(row.archived_at).toISOString() : null,
       createdAt: new Date(row.created_at).toISOString(),
       updatedAt: new Date(row.updated_at).toISOString(),
-      publishedAt: null,
-      syncStatus: 'not_applicable',
+      publishedAt: row.published_at
+        ? new Date(row.published_at).toISOString()
+        : kind === 'blog' &&
+            row.status === 'scheduled' &&
+            row.scheduled_at &&
+            new Date(row.scheduled_at).getTime() <= Date.now()
+          ? new Date(row.scheduled_at).toISOString()
+          : null,
+      syncStatus: row.sync_status ?? 'not_applicable',
     };
   }
   async list(
@@ -111,7 +140,7 @@ export class TypedModuleStore {
     return {
       items: (
         await this.pool.query(
-          `SELECT * FROM ${table} WHERE ${where} ORDER BY updated_at DESC,id LIMIT $8 OFFSET $7`,
+          `SELECT ${this.projection(kind)} FROM ${table} WHERE ${where} ORDER BY updated_at DESC,id LIMIT $8 OFFSET $7`,
           [...args, offset, limit],
         )
       ).rows.map((row) => this.map(kind, row)),
@@ -123,10 +152,10 @@ export class TypedModuleStore {
   }
   async get(id: string, kind: ModuleKind, a: WorkspaceActor) {
     const row = (
-      await this.pool.query(`SELECT * FROM ${this.config(kind).table} WHERE ${access} AND id=$5`, [
-        ...values(a),
-        id,
-      ])
+      await this.pool.query(
+        `SELECT ${this.projection(kind)} FROM ${this.config(kind).table} WHERE ${access} AND id=$5`,
+        [...values(a), id],
+      )
     ).rows[0];
     if (!row) throw new WorkspaceError(404, 'Registro não encontrado ou sem permissão.');
     return this.map(kind, row);
@@ -140,7 +169,13 @@ export class TypedModuleStore {
     version?: number,
     archive?: boolean,
   ) {
-    data = moduleSchemas[kind].parse(data);
+    if (kind === 'blog' && archive !== undefined) {
+      const original = data as { status: string };
+      data = {
+        ...moduleSchemas.blog.parse({ ...data, status: 'draft' }),
+        status: original.status,
+      } as ModuleData;
+    } else data = moduleSchemas[kind].parse(data);
     const config = this.config(kind),
       { table, fields } = config,
       columns = [...Object.values(fields), ...(config.leadLink ? ['lead_id'] : [])],
@@ -149,7 +184,7 @@ export class TypedModuleStore {
           const value = (data as unknown as Record<string, unknown>)[key];
           return config.secrets?.includes(key)
             ? seal(String(value ?? ''))
-            : config.dates?.includes(key) && value === ''
+            : (config.dates?.includes(key) || config.timestamps?.includes(key)) && value === ''
               ? null
               : value;
         }),
@@ -170,14 +205,20 @@ export class TypedModuleStore {
       let before;
       if (id) {
         before = (
-          await client.query(`SELECT * FROM ${table} WHERE ${access} AND id=$5 FOR UPDATE`, [
-            ...values(a),
-            id,
-          ])
+          await client.query(
+            `SELECT ${this.projection(kind)} FROM ${table} WHERE ${access} AND id=$5 FOR UPDATE`,
+            [...values(a), id],
+          )
         ).rows[0];
         if (!before) throw new WorkspaceError(404, 'Registro indisponível.');
         if (before.version !== version)
           throw new WorkspaceError(409, 'Este registro foi alterado. Atualize antes de salvar.');
+        if (
+          kind === 'blog' &&
+          this.map(kind, before).publishedAt &&
+          before.slug !== (data as { slug: string }).slug
+        )
+          throw new WorkspaceError(409, 'A URL de um artigo já publicado deve ser preservada.');
         if (
           kind === 'contract' &&
           ['accepted', 'active'].includes(before.status) &&
@@ -201,8 +242,27 @@ export class TypedModuleStore {
           `INSERT INTO ${table}_versions(document_id,version,${columns.join(',')},actor_id) SELECT id,version,${columns.join(',')},$2 FROM ${table} WHERE id=$1`,
           [id, a.id],
         );
+        if (kind === 'conversation')
+          await client.query(
+            'INSERT INTO agency_conversation_version_messages(document_id,version,position,role,content) SELECT document_id,$2,position,role,content FROM agency_conversation_messages WHERE document_id=$1',
+            [id, before.version],
+          );
       }
-      const row = before
+      if (kind === 'blog') {
+        await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+          'blog:' + (data as { slug: string }).slug,
+        ]);
+        if (
+          (
+            await client.query(
+              'SELECT id FROM agency_blog_posts WHERE slug=$1 AND ($2::uuid IS NULL OR id<>$2)',
+              [(data as { slug: string }).slug, id ?? null],
+            )
+          ).rows.length
+        )
+          throw new WorkspaceError(409, 'Esta URL já pertence a outro artigo.');
+      }
+      let row = before
         ? (
             await client.query(
               `UPDATE ${table} SET ${columns.map((col, index) => `${col}=$${index + 2}`).join(',')},version=version+1,updated_at=now(),archived_at=CASE WHEN $${columns.length + 2}::boolean IS NULL THEN archived_at WHEN $${columns.length + 2} THEN now() ELSE NULL END WHERE id=$1 RETURNING *`,
@@ -215,11 +275,45 @@ export class TypedModuleStore {
               [a.id, ...entries],
             )
           ).rows[0];
+      if (kind === 'conversation') {
+        await client.query('DELETE FROM agency_conversation_messages WHERE document_id=$1', [
+          row.id,
+        ]);
+        const messages = (data as { messages: { role: string; content: string }[] }).messages;
+        for (const [position, message] of messages.entries())
+          await client.query(
+            'INSERT INTO agency_conversation_messages(document_id,position,role,content) VALUES($1,$2,$3,$4)',
+            [row.id, position, message.role, message.content],
+          );
+        row.messages = messages;
+      }
+      if (kind === 'blog') {
+        const post = data as import('@dcfoundry/shared').BlogData,
+          published = post.status === 'published',
+          priorPublished = before ? this.map(kind, before).publishedAt : null;
+        const sync =
+          post.status === 'draft' && !priorPublished
+            ? 'draft'
+            : process.env.BLOG_SITE_WEBHOOK_URL
+              ? 'pending'
+              : 'not_configured';
+        row = (
+          await client.query(
+            'UPDATE agency_blog_posts SET published_at=COALESCE($2::timestamptz,published_at,CASE WHEN $3 THEN now() ELSE NULL END),sync_status=$4 WHERE id=$1 RETURNING *',
+            [row.id, priorPublished, published, sync],
+          )
+        ).rows[0];
+        if (post.status !== 'draft' || priorPublished)
+          await client.query(
+            "INSERT INTO workspace_blog_outbox(document_id,slugs,next_attempt_at) VALUES($1,$2,CASE WHEN $3::text<>'' AND $4='scheduled' AND $5::boolean IS NOT TRUE THEN $3::timestamptz ELSE now() END)",
+            [row.id, JSON.stringify([post.slug]), post.scheduledAt, post.status, archive ?? false],
+          );
+      }
       await client.query(
         `INSERT INTO audit_logs(actor_type,actor_id,action,entity_type,entity_id,diff_json) VALUES('user',$1,$2,$3,$4,$5)`,
         [
           a.id,
-          `${kind}.${before ? 'update' : 'create'}`,
+          `${kind}.${archive === true ? 'archive' : archive === false ? 'restore' : before ? 'update' : 'create'}`,
           kind,
           row.id,
           JSON.stringify({
@@ -250,7 +344,7 @@ export class TypedModuleStore {
     const config = this.config(kind);
     return (
       await this.pool.query(
-        `SELECT * FROM ${config.table}_versions WHERE document_id=$1 ORDER BY version DESC LIMIT 30`,
+        `SELECT ${this.projection(kind, true)} FROM ${config.table}_versions WHERE document_id=$1 ORDER BY version DESC LIMIT 30`,
         [id],
       )
     ).rows.map((row) => ({

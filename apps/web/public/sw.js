@@ -28,3 +28,49 @@ self.addEventListener('notificationclick', (event) => {
     }),
   );
 });
+const STATIC_CACHE = 'dc-foundry-static-v2';
+const STATIC_PATHS = [
+  '/offline.html',
+  '/app-icon-192.png',
+  '/app-icon-512.png',
+  '/logosemfundonova.png',
+  '/dcsemfundooriginal.png',
+  '/fonts/manrope-latin.woff2',
+];
+self.addEventListener('install', (event) =>
+  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_PATHS))),
+);
+self.addEventListener('activate', (event) =>
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith('dc-foundry-static-') && key !== STATIC_CACHE)
+            .map((key) => caches.delete(key)),
+        ),
+      )
+      .then(() => self.clients.claim()),
+  ),
+);
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  if (
+    event.request.method !== 'GET' ||
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith('/api/')
+  )
+    return;
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        caches
+          .match('/offline.html')
+          .then((response) => response || new Response('CRM sem conexão', { status: 503 })),
+      ),
+    );
+  } else if (!url.search && STATIC_PATHS.includes(url.pathname)) {
+    event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
+  }
+});

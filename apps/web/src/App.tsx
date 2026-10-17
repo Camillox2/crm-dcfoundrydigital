@@ -10,6 +10,7 @@ import {
   Download,
   MessageSquare,
   Archive,
+  RefreshCw,
 } from 'lucide-react';
 import { Badge, Button, Card } from '@dcfoundry/ui';
 import {
@@ -34,7 +35,8 @@ import { downloadCsv } from './components/modules/useModule.js';
 import { LeadExtras } from './components/modules/LeadExtras.js';
 import { LeadFoundry } from './components/modules/FoundryControls.js';
 import { PipelineSettings } from './components/modules/PipelineSettings.js';
-import {removeBrowserPush} from './components/NotificationCenter.js';
+import { removeBrowserPush } from './components/NotificationCenter.js';
+import { LeadImport } from './components/modules/LeadImport.js';
 const BlogStudio = lazy(() =>
   import('./components/modules/BlogStudio.js').then((m) => ({
     default: m.BlogStudio,
@@ -43,7 +45,11 @@ const BlogStudio = lazy(() =>
 const CompanySettings = lazy(() =>
   import('./components/modules/CompanySettings.js').then((m) => ({ default: m.CompanySettings })),
 );
-const WebsiteChatWorkspace=lazy(()=>import('./components/modules/WebsiteChatWorkspace.js').then(m=>({default:m.WebsiteChatWorkspace})));
+const WebsiteChatWorkspace = lazy(() =>
+  import('./components/modules/WebsiteChatWorkspace.js').then((m) => ({
+    default: m.WebsiteChatWorkspace,
+  })),
+);
 const ClientPortal = lazy(() =>
   import('./pages/ClientPortal.js').then((m) => ({ default: m.ClientPortal })),
 );
@@ -231,7 +237,7 @@ export function App() {
       onSearch={showSearch}
       onLogout={() => {
         if (!window.dispatchEvent(new Event('crm:navigate', { cancelable: true }))) return;
-        void removeBrowserPush(user).catch(()=>undefined);
+        void removeBrowserPush(user).catch(() => undefined);
         setUser(null);
         setSelectedId(null);
         setFoundryOpen(false);
@@ -270,11 +276,24 @@ export function App() {
                 )}
                 {page === 'kanban' && (
                   <div className="kanban-page">
+                    {resolveGrantedScope(user.roles, 'lead:create') && (
+                      <LeadImport
+                        user={user}
+                        onImported={() => window.dispatchEvent(new Event('crm:leads-changed'))}
+                      />
+                    )}
                     <div className="kanban-toolbar">
                       <div>
                         <Badge tone="sky">{workspace.leads.length} oportunidades</Badge>
                         <span>Um próximo passo por vez.</span>
                       </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => window.dispatchEvent(new Event('crm:leads-changed'))}
+                      >
+                        <RefreshCw size={15} />
+                        Atualizar contatos
+                      </Button>
                       <Button
                         onClick={() => {
                           setActionError(null);
@@ -463,7 +482,7 @@ export function App() {
                 {page === 'blog' && <BlogStudio user={user} />}
                 {page === 'contracts' && <ServiceContracts user={user} leads={workspace.leads} />}
                 {page === 'settings' && <CompanySettings user={user} />}
-                {page === 'site_chat' && <WebsiteChatWorkspace user={user}/>}
+                {page === 'site_chat' && <WebsiteChatWorkspace user={user} />}
                 {page === 'portal' && <ClientPortalWorkspace user={user} leads={workspace.leads} />}
                 {page === 'finance' && (
                   <RecordsModule kind="invoice" user={user} leads={workspace.leads} />

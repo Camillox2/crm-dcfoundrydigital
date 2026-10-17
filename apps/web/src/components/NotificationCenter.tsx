@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { Bell, Check, Smartphone, X } from 'lucide-react';
 import type { WorkspacePage } from '@dcfoundry/shared';
 import type { AuthenticatedSession } from '../pages/LoginPage.js';
@@ -23,6 +23,7 @@ export function NotificationCenter({
   user: AuthenticatedSession;
   onNavigate: (page: WorkspacePage) => void;
 }) {
+  const seen = useRef(new Set<string>());
   const request = useCrmApi(user),
     [open, setOpen] = useState(false),
     [items, setItems] = useState<any[]>([]),
@@ -34,6 +35,9 @@ export function NotificationCenter({
     if (user.preview) return;
     try {
       const data = await request('/api/v1/notifications');
+      if (data.items.some((item: any) => item.kind === 'new_lead' && !seen.current.has(item.id)))
+        window.dispatchEvent(new Event('crm:leads-changed'));
+      seen.current = new Set(data.items.map((item: any) => String(item.id)));
       setItems(data.items);
       setUnread(data.unread);
     } catch (e) {

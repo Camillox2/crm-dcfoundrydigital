@@ -34,7 +34,8 @@ import { registerServiceContractRoutes } from './service-contract-routes.js';
 import { registerPortalRoutes } from './portal-routes.js';
 import { registerCalendarRoutes } from './calendar-routes.js';
 import { registerNotificationRoutes } from './notification-routes.js';
-import {registerWebsiteChatRoutes} from './website-chat-routes.js';
+import { registerWebsiteChatRoutes } from './website-chat-routes.js';
+import { registerIntegrationExtras } from './integration-extras-routes.js';
 import type { PushSender } from './notifications.js';
 import type { ContractMailer } from './contract-delivery.js';
 
@@ -59,6 +60,7 @@ export async function buildApiServer(
     foundryGenerate?: FoundryGenerate;
     contractMailer?: ContractMailer;
     pushSender?: PushSender;
+    adsSend?: typeof fetch;
   } = {},
 ): Promise<{
   app: FastifyInstance;
@@ -134,7 +136,8 @@ export async function buildApiServer(
   await registerPortalRoutes(app, database);
   await registerCalendarRoutes(app, database);
   await registerNotificationRoutes(app, database, options.pushSender);
-  await registerWebsiteChatRoutes(app,database,options.foundryGenerate,whatsapp.syncControl);
+  await registerWebsiteChatRoutes(app, database, options.foundryGenerate, whatsapp.syncControl);
+  await registerIntegrationExtras(app, database, options.adsSend);
   app.addHook('onClose', async () => {
     if (connection) await (await connection).pool.end();
   });

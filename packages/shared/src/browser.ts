@@ -9,3 +9,4 @@ export * from './reporting.js';
 export * from './whatsapp.js';
 export * from './pipeline.js';
 export * from './documents.js';
+export * from './attribution.js';

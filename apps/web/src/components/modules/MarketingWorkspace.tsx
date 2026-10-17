@@ -6,6 +6,7 @@ import type { AuthenticatedSession } from '../../pages/LoginPage.js';
 import { useCrmApi } from './useModule.js';
 import { ModuleNotice } from './ModuleTools.js';
 import { RecordsModule } from './RecordsModule.js';
+import { OfflineAdsPanel } from './OfflineAdsPanel.js';
 
 function parseCsv(text: string) {
   const delimiter = (text.split(/\r?\n/)[0] ?? '').includes(';') ? ';' : ',';
@@ -106,6 +107,7 @@ export function MarketingWorkspace({ user }: { user: AuthenticatedSession }) {
   };
   return (
     <div className="module-workspace">
+      <OfflineAdsPanel user={user} />
       <Card className="ads-import-panel">
         <div>
           <h3>Do relatório à decisão.</h3>

@@ -2,7 +2,8 @@ import pg from 'pg';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from './schema.js';
 import * as agencySchema from './agency-schema.js';
-const completeSchema = { ...schema, ...agencySchema };
+import * as recordSchema from './record-schema.js';
+const completeSchema = { ...schema, ...agencySchema,...recordSchema };
 
 const { Pool } = pg;
 

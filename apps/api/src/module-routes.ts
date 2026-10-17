@@ -164,7 +164,7 @@ export async function registerModuleRoutes(
       uuid.safeParse(process.env.CRM_SITE_OWNER_ID).success,
     ),
     siteUrl: process.env.CRM_SITE_URL ?? 'https://dcfoundrydigital.com',
-    whatsapp: 'manual',
+    whatsapp: process.env.REDIS_URL ? 'worker_configured' : 'not_configured',
   }));
   app.get('/api/v1/workspace/daily-summary', { preHandler: [requireSession] }, async (req) => {
     const store = await repo();
@@ -175,8 +175,12 @@ export async function registerModuleRoutes(
         `${moduleResources[kind]}:read` as PermissionKey,
       );
       if (!granted) continue;
+      const summarySource =
+        kind === 'contract'
+          ? "(SELECT owner_id,archived_at,'contract'::text AS kind,jsonb_build_object('status',status) AS data FROM agency_proposals) summary"
+          : 'workspace_documents';
       const row = await store.pool.query(
-        `SELECT count(*)::integer AS total,count(*) FILTER(WHERE data->>'status' IN ('open','draft','sent','scheduled') AND (data->>'status'<>'scheduled' OR NULLIF(data->>'scheduledAt','')::timestamptz>now()))::integer AS pending,count(*) FILTER(WHERE data->>'status'='open' AND data->>'dueDate'<to_char(current_timestamp AT TIME ZONE 'America/Sao_Paulo','YYYY-MM-DD'))::integer AS overdue FROM workspace_documents WHERE kind=$1 AND archived_at IS NULL AND ($2::boolean OR owner_id=$3::uuid OR ($4::boolean AND owner_id IN(SELECT id FROM users WHERE team_id=$5::uuid)))`,
+        `SELECT count(*)::integer AS total,count(*) FILTER(WHERE data->>'status' IN ('open','draft','sent','scheduled') AND (data->>'status'<>'scheduled' OR NULLIF(data->>'scheduledAt','')::timestamptz>now()))::integer AS pending,count(*) FILTER(WHERE data->>'status'='open' AND data->>'dueDate'<to_char(current_timestamp AT TIME ZONE 'America/Sao_Paulo','YYYY-MM-DD'))::integer AS overdue FROM ${summarySource} WHERE kind=$1 AND archived_at IS NULL AND ($2::boolean OR owner_id=$3::uuid OR ($4::boolean AND owner_id IN(SELECT id FROM users WHERE team_id=$5::uuid)))`,
         [
           kind,
           granted === 'all',

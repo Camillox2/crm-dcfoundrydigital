@@ -1,7 +1,8 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { DatabaseConnectionResult } from '@dcfoundry/db';
-import { resolveGrantedScope } from '@dcfoundry/shared';
+import { resolveGrantedScope, AttributionInput } from '@dcfoundry/shared';
+import { persistAttribution } from './lead-import.js';
 import { z } from 'zod';
 import { requirePermission } from './plugins/auth.js';
 import { requestActor, scopedLead } from './agency-access.js';
@@ -58,6 +59,7 @@ export async function registerWebsiteChatRoutes(
         .object({
           visitorHash: z.string().regex(/^[a-f0-9]{64}$/),
           path: z.string().startsWith('/').max(500).default('/'),
+          attribution: AttributionInput.optional(),
         })
         .parse(req.body),
       owner = z.string().uuid().safeParse(process.env.CRM_SITE_OWNER_ID);
@@ -90,6 +92,7 @@ export async function registerWebsiteChatRoutes(
           [owner.data, input.path],
         )
       ).rows[0];
+      await persistAttribution(c, lead.id, input.attribution ?? {});
       const row = (
         await c.query(
           "INSERT INTO website_chat_sessions(lead_id,owner_id,token_hash,visitor_hash,expires_at,path) VALUES($1,$2,$3,$4,now()+interval '14 days',$5) RETURNING id",

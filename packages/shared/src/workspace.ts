@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { isWonLead, isLostLead } from './pipeline.js';
+import {AttributionInput} from './attribution.js';
 
 export const LeadStageSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/);
 export const CreateWorkspaceLeadSchema = z.object({
   name: z.string().trim().min(2).max(180),
   company: z.string().trim().min(2).max(180),
+  email:z.union([z.string().email().max(254),z.literal('')]).optional(),
   phone: z
     .string()
     .trim()
@@ -17,6 +19,7 @@ export const CreateWorkspaceLeadSchema = z.object({
   highPriority: z.boolean().default(false),
   campaign: z.string().trim().max(150).optional(),
   gclid: z.string().trim().max(200).optional(),
+  attribution:AttributionInput.optional(),
 });
 export type WorkspaceLeadInput = z.infer<typeof CreateWorkspaceLeadSchema>;
 export interface WorkspaceLead extends WorkspaceLeadInput {

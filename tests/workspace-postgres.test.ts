@@ -274,10 +274,10 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
         expect(
           (await app.inject({ method: 'GET', url: '/api/blog/posts/agendado' })).statusCode,
         ).toBe(404);
-        await pool.query(
-          "UPDATE workspace_documents SET data=jsonb_set(data,'{scheduledAt}',to_jsonb($2::text)) WHERE id=$1",
-          [scheduled.json().item.id, new Date(Date.now() - 60000).toISOString()],
-        );
+        await pool.query('UPDATE agency_blog_posts SET scheduled_at=$2::timestamptz WHERE id=$1', [
+          scheduled.json().item.id,
+          new Date(Date.now() - 60000).toISOString(),
+        ]);
         expect(
           (await app.inject({ method: 'GET', url: '/api/blog/posts/agendado' })).statusCode,
         ).toBe(200);
@@ -712,9 +712,8 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
         owner,
         other,
       ]);
-      await pool.query('DELETE FROM workspace_documents WHERE owner_id IN ($1,$2)', [owner, other]);
-      await pool.query('DELETE FROM workspace_leads WHERE owner_id IN ($1,$2)', [owner, other]);
-      await pool.query('DELETE FROM users WHERE id IN ($1,$2)', [owner, other]);
+      // The disposable *_ci database is removed by the verification harness. Keep foreign-key
+      // and signature evidence intact if an assertion fails before the explicit reset test.
       await pool.end();
       if (previousMediaDirectory === undefined) delete process.env.CRM_UPLOAD_DIR;
       else process.env.CRM_UPLOAD_DIR = previousMediaDirectory;

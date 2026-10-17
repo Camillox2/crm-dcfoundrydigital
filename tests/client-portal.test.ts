@@ -105,6 +105,16 @@ it('isolates portal links, accepts the exact proposal version and records a serv
     const link = (await call('POST', '/api/v1/leads/' + lead.id + '/portal')).json(),
       token = link.path.split('/').pop(),
       base = '/api/public/portal/' + token;
+    expect(
+      (
+        await call(
+          'POST',
+          '/api/v1/leads/' + lead.id + '/portal',
+          undefined,
+          auth(owner, 'vendedor'),
+        )
+      ).statusCode,
+    ).toBe(403);
     expect((await call('GET', base, undefined, {})).headers['cache-control']).toBe('no-store');
     const portal = (await call('GET', base, undefined, {})).json();
     expect(portal.proposals.map((p: any) => p.id)).toEqual([proposal.id]);

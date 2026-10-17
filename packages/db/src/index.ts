@@ -83,3 +83,4 @@ export * from './schema.js';
 export * from './client.js';
 export * from './operations.js';
 export * from './agency-schema.js';
+export * from './record-schema.js';
