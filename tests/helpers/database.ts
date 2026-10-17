@@ -21,7 +21,9 @@ export async function testDatabase() {
     return release;
   };
   const execute = async (sql: string, parameters: unknown[] = []) => {
-    const result = await db.query(sql, parameters);
+    const result = await db.query(sql, parameters).catch((error) => {
+      throw new Error(`${error.message} — SQL: ${sql}`, { cause: error });
+    });
     return { ...result, rowCount: result.affectedRows ?? result.rows.length };
   };
   const pool = {

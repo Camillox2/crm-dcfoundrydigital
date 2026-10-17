@@ -3,8 +3,8 @@
 Repositório de referência consultado somente em leitura. Nenhuma sessão, banco ou serviço da referência foi alterado.
 
 1. WhatsApp: implementado — sessão persistente, QR/código, reconexão, histórico limitado, identidade por E.164/JID, outbox Redis e escopos. Testes unitários e PostgreSQL descartável passaram. Pareamento real depende do telefone na VPS.
-2. Chat e mídia: em implementação.
-3. Foundry compartilhada, qualificação, resumo e laboratório: pendente.
+2. Chat e mídia: implementado — envio idempotente, mídia privada em volume, emojis, recibos, SSE autenticado e fotos com cache em memória. Teste percorre API, outbox, Baileys simulado e confirmação de envio; conexão SSE real em loopback também verificada.
+3. Foundry compartilhada, qualificação, resumo e laboratório: em implementação.
 4. Kanban configurável, tags e anexos: pendente.
 5. Configurações PF/PJ e contratos de serviços assináveis: pendente.
 6. Portal e solicitações: pendente.

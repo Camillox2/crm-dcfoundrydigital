@@ -72,6 +72,12 @@ export const whatsappMessages = pgTable(
     actorId: uuid('actor_id').references(() => users.id),
     body: text('body').notNull().default(''),
     historical: boolean('historical').notNull().default(false),
+    messageType: varchar('message_type', { length: 16 }).notNull().default('text'),
+    delivery: varchar('delivery', { length: 16 }).notNull().default('received'),
+    mediaKey: varchar('media_key', { length: 200 }),
+    mimeType: varchar('mime_type', { length: 150 }),
+    fileName: varchar('file_name', { length: 180 }),
+    mediaBytes: integer('media_bytes'),
     sentAt: timestamp('sent_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -88,6 +94,10 @@ export const whatsappCommands = pgTable('wa_commands', {
   messageId: uuid('message_id').references(() => whatsappMessages.id),
   jid: varchar('jid', { length: 160 }),
   body: text('body'),
+  mediaKey: varchar('media_key', { length: 200 }),
+  mimeType: varchar('mime_type', { length: 150 }),
+  fileName: varchar('file_name', { length: 180 }),
+  mediaType: varchar('media_type', { length: 16 }),
   anchorId: varchar('anchor_id', { length: 200 }),
   anchorFromMe: boolean('anchor_from_me'),
   anchorTimestamp: bigint('anchor_timestamp', { mode: 'number' }),
@@ -97,4 +107,19 @@ export const whatsappCommands = pgTable('wa_commands', {
 export const whatsappEventReceipts = pgTable('wa_event_receipts', {
   id: uuid('id').primaryKey(),
   receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const whatsappMediaUploads = pgTable('wa_media_uploads', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  leadId: uuid('lead_id')
+    .notNull()
+    .references(() => workspaceLeads.id),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
+  storageKey: varchar('storage_key', { length: 200 }).notNull().unique(),
+  mimeType: varchar('mime_type', { length: 150 }).notNull(),
+  fileName: varchar('file_name', { length: 180 }).notNull(),
+  mediaType: varchar('media_type', { length: 16 }).notNull(),
+  bytes: integer('bytes').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

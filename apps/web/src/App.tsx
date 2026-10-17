@@ -42,8 +42,8 @@ const RecordsModule = lazy(() =>
   })),
 );
 const WhatsAppWorkspace = lazy(() =>
-  import('./components/modules/CommunicationModules.js').then((m) => ({
-    default: m.WhatsAppWorkspace,
+  import('./components/modules/WhatsAppChat.js').then((m) => ({
+    default: m.WhatsAppChatWorkspace,
   })),
 );
 const AssistantWorkspace = lazy(() =>

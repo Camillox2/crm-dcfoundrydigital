@@ -18,6 +18,14 @@ O histórico é recebido em lotes limitados, sem manter uma cópia completa na R
 
 Limites do Compose: PostgreSQL 512 MB, Redis 128 MB, API 384 MB, worker 384 MB e Caddy 96 MB (1.504 MB no total). Não foram adicionadas portas. O worker usa heap de 256 MB e uma sessão por padrão. Os limites precisam ser acompanhados com `docker stats` após o pareamento real. Os testes usam socket Baileys simulado e PostgreSQL descartável; não pareiam um telefone real.
 
+### Chat e mídia — item 2
+
+A migration `0007_whatsapp_media.sql` adiciona mídia, recibos e uploads tipados. **WhatsApp → Conversas ao vivo** permite escolher um lead, enviar texto, emoji, imagem, áudio ou documento de até 16 MB. O envio entra no outbox antes de ir ao worker. A tela mostra separadamente fila, envio, entrega e leitura; não confunde fila com entrega. O mesmo identificador de mensagem é reutilizado nas tentativas do worker.
+
+API e worker montam `crm_uploads` em `CRM_UPLOAD_DIR=/data/uploads`; preserve esse volume. Os arquivos não são servidos pelo Caddy. A API confere a permissão e o escopo do contato em cada leitura, não usa nome recebido do cliente como caminho e responde com cache privado desabilitado. Documentos são baixados como anexo. Mídia recebida que expirou ou ultrapassou o limite continua identificada no histórico, sem inventar um arquivo. Mídia histórica não é baixada automaticamente.
+
+As atualizações passam por SSE autenticado na mesma API, sem porta nova. Fotos são consultadas no socket ativo com cache limitado em memória e separado por geração da sessão; trocar de provedor invalida o resultado anterior. Fotos privadas ou indisponíveis usam iniciais. Nenhuma variável adicional além de `CRM_UPLOAD_DIR` é necessária neste item.
+
 Requisitos: Node.js 22 atualizado, Corepack/pnpm 10.6, Docker com Compose e um domínio apontado para o servidor. Esta revisão não executa deploy no VPS.
 
 ## O que inicia limpo

@@ -40,10 +40,16 @@ export interface DemoUserRecord {
 }
 
 export async function buildApiServer(
-  options: { users?: DemoUserRecord[]; workspaceStore?: WorkspaceStore; testDatabase?: DatabaseConnectionResult; whatsappTransport?: WhatsAppTransport } = {},
+  options: {
+    users?: DemoUserRecord[];
+    workspaceStore?: WorkspaceStore;
+    testDatabase?: DatabaseConnectionResult;
+    whatsappTransport?: WhatsAppTransport;
+  } = {},
 ): Promise<{
   app: FastifyInstance;
   auditService: ImmutableAuditService;
+  whatsapp: Awaited<ReturnType<typeof registerWhatsAppRoutes>>;
 }> {
   const app = Fastify({ logger: false });
   const auditService = new ImmutableAuditService();
@@ -86,8 +92,9 @@ export async function buildApiServer(
     throw new Error('DATABASE_URL is required in production.');
   let connection: Promise<DatabaseConnectionResult> | undefined;
   const database = () => {
-    if(options.testDatabase) {
-      if(process.env.NODE_ENV==='production')throw new Error('Test database injection is unavailable in production.');
+    if (options.testDatabase) {
+      if (process.env.NODE_ENV === 'production')
+        throw new Error('Test database injection is unavailable in production.');
       return Promise.resolve(options.testDatabase);
     }
     if (!process.env.DATABASE_URL) return null;
@@ -101,7 +108,7 @@ export async function buildApiServer(
   };
   await registerModuleRoutes(app, database);
   await registerReportingRoutes(app, database);
-  await registerWhatsAppRoutes(app, database, options.whatsappTransport);
+  const whatsapp = await registerWhatsAppRoutes(app, database, options.whatsappTransport);
   app.addHook('onClose', async () => {
     if (connection) await (await connection).pool.end();
   });
@@ -374,5 +381,5 @@ export async function buildApiServer(
     },
   );
 
-  return { app, auditService };
+  return { app, auditService, whatsapp };
 }

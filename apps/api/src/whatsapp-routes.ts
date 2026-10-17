@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { requirePermission } from './plugins/auth.js';
 import { WorkspaceError } from './module-store.js';
 import { WhatsAppStore } from './whatsapp-store.js';
+import { registerWhatsAppChat, WhatsAppRealtime } from './whatsapp-chat.js';
 import {
   startWhatsAppTransport,
   flushWhatsAppCommands,
@@ -18,6 +19,11 @@ export async function registerWhatsAppRoutes(
 ) {
   let transport = provided;
   let flushing = false;
+  const realtime = new WhatsAppRealtime();
+  const processEvent = async (event: import('@dcfoundry/shared').WhatsAppEvent) => {
+    await (await store()).ingest(event);
+    realtime.receive(event);
+  };
   const store = async () => {
     const db = await database();
     if (!db) throw new WorkspaceError(503, 'Configure o PostgreSQL.');
@@ -26,7 +32,7 @@ export async function registerWhatsAppRoutes(
   const getTransport = () => {
     if (!transport && process.env.REDIS_URL)
       transport = startWhatsAppTransport(process.env.REDIS_URL, async (event) => {
-        await (await store()).ingest(event);
+        await processEvent(event);
       });
     return transport;
   };
@@ -62,7 +68,25 @@ export async function registerWhatsAppRoutes(
       const repo = await store();
       return {
         items: await Promise.all(
-          (await repo.list(actor(req, 'read'))).map((id) => repo.session(id, actor(req, 'read'))),
+          (await repo.list({ ...actor(req, 'read'), scope: 'all' })).map(async (id) => {
+            const s = await repo.session(id, { ...actor(req, 'read'), scope: 'all' });
+            let manage = false;
+            const scope = resolveGrantedScope(req.authUser!.roles, 'whatsapp:manage');
+            if (scope)
+              manage = Boolean(
+                await repo.session(id, { ...actor(req, 'read'), scope }).catch(() => null),
+              );
+            return {
+              id: s.id,
+              provider: s.provider,
+              status: s.status,
+              phone: s.phone,
+              history_progress: s.history_progress,
+              import_history: s.import_history,
+              qr: manage ? s.qr : null,
+              pairing_code: manage ? s.pairing_code : null,
+            };
+          }),
         ),
         workerConfigured: Boolean(getTransport()),
       };
@@ -110,5 +134,6 @@ export async function registerWhatsAppRoutes(
         return reply.status(202).send({ queued: true });
       },
     );
-  return { store, flush };
+  await registerWhatsAppChat(app, store, flush, realtime);
+  return { store, flush, realtime, processEvent };
 }

@@ -5,7 +5,7 @@ import { resolveGrantedScope } from '@dcfoundry/shared';
 import type { AuthenticatedSession } from '../../pages/LoginPage.js';
 import { useCrmApi } from './useModule.js';
 import { useDialogFocus } from '../useDialogFocus.js';
-type Session = {
+export type Session = {
   id: string;
   provider: string;
   status: string;

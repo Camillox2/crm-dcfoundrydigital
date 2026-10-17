@@ -151,6 +151,9 @@ export class WhatsAppStore {
       messageId: row.message_id ?? undefined,
       jid: row.jid ?? undefined,
       text: row.body ?? undefined,
+      media: row.media_key
+        ? { key: row.media_key, mime: row.mime_type, name: row.file_name, type: row.media_type }
+        : undefined,
       anchor: row.anchor_id
         ? { id: row.anchor_id, fromMe: row.anchor_from_me, timestamp: Number(row.anchor_timestamp) }
         : undefined,
@@ -182,7 +185,7 @@ export class WhatsAppStore {
       }
       if (event.type === 'status')
         await client.query(
-          `UPDATE wa_sessions SET status=$2,qr=$3,pairing_code=$4,credentials_expires_at=CASE WHEN $3::text IS NOT NULL OR $4::text IS NOT NULL THEN now()+interval '60 seconds' ELSE NULL END,phone=COALESCE($5,phone),heartbeat_at=now(),updated_at=now() WHERE id=$1`,
+          `UPDATE wa_sessions SET status=$2,qr=$3,pairing_code=$4::text,credentials_expires_at=CASE WHEN $3::text IS NOT NULL OR $4::text IS NOT NULL THEN now()+interval '60 seconds' ELSE NULL END,phone=COALESCE($5,phone),heartbeat_at=now(),updated_at=now() WHERE id=$1`,
           [
             event.sessionId,
             canonicalWhatsAppStatus(session.provider, event.status ?? 'disconnected'),
@@ -195,6 +198,11 @@ export class WhatsAppStore {
         await client.query(
           'UPDATE wa_sessions SET history_progress=$2,heartbeat_at=now(),updated_at=now() WHERE id=$1',
           [event.sessionId, Math.round(event.historyProgress ?? 0)],
+        );
+      if (event.type === 'receipt' && event.externalId && event.jid)
+        await client.query(
+          `UPDATE wa_messages SET delivery=CASE WHEN delivery='read' THEN 'read' WHEN delivery='delivered' AND $4::text='sent' THEN 'delivered' ELSE $4::text END,sent_at=CASE WHEN delivery='queued' AND $4::text='sent' THEN now() ELSE sent_at END WHERE session_id=$1 AND external_id=$2 AND jid=$3 AND direction='outbound'`,
+          [event.sessionId, event.externalId, event.jid, event.delivery ?? 'sent'],
         );
       for (const m of event.messages ?? []) {
         const identity = directIdentity(
@@ -229,7 +237,7 @@ export class WhatsAppStore {
           [session.id, lead.id, identity.jid, phone],
         );
         await client.query(
-          `INSERT INTO wa_messages(session_id,lead_id,external_id,jid,direction,actor_type,body,historical,sent_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(session_id,jid,external_id) DO NOTHING`,
+          `INSERT INTO wa_messages(session_id,lead_id,external_id,jid,direction,actor_type,body,historical,sent_at,message_type,delivery,media_key,mime_type,file_name,media_bytes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT(session_id,jid,external_id) DO NOTHING`,
           [
             session.id,
             lead.id,
@@ -240,6 +248,12 @@ export class WhatsAppStore {
             m.text,
             m.historical,
             m.timestamp,
+            m.type,
+            m.fromMe ? 'sent' : 'received',
+            m.mediaKey ?? null,
+            m.mime ?? null,
+            m.fileName ?? null,
+            m.mediaBytes ?? null,
           ],
         );
       }

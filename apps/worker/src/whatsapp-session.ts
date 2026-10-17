@@ -45,6 +45,7 @@ export function createSessionManager({
   directory,
   schedule = (callback, ms) => setTimeout(callback, ms),
   onMessage,
+  onCommand,
 }: {
   factory: SocketFactory;
   emit: Emit;
@@ -55,6 +56,7 @@ export function createSessionManager({
     historical: boolean,
     command: WhatsAppCommand,
   ) => Promise<WhatsAppEvent['messages']>;
+  onCommand?: (command: WhatsAppCommand, socket: SessionSocket | undefined) => Promise<void>;
 }) {
   const sessions = new Map<string, Active>();
   const event = (active: Active, data: Omit<WhatsAppEvent, 'id' | 'sessionId' | 'generation'>) =>
@@ -112,6 +114,21 @@ export function createSessionManager({
         .catch(() => undefined);
     };
     result.socket.ev.on('creds.update', () => safe(result.saveCreds));
+    result.socket.ev.on('messages.update', (updates: any[]) =>
+      safe(async () => {
+        for (const update of updates) {
+          const identity = directIdentity(update.key?.remoteJid ?? '');
+          const status = Number(update.update?.status);
+          if (identity && update.key?.id && status >= 2)
+            await event(active, {
+              type: 'receipt',
+              jid: identity.jid,
+              externalId: update.key.id,
+              delivery: status >= 4 ? 'read' : status >= 3 ? 'delivered' : 'sent',
+            });
+        }
+      }),
+    );
     result.socket.ev.on('connection.update', (update) =>
       safe(async () => {
         if (active.stopped) return;
@@ -244,6 +261,11 @@ export function createSessionManager({
           { id: command.anchor.id, fromMe: command.anchor.fromMe, remoteJid: command.jid },
           command.anchor.timestamp,
         );
+      } else {
+        if (!old || old.command.generation !== command.generation)
+          throw new Error('Session generation unavailable');
+        if (!onCommand) throw new Error('Command handler unavailable');
+        await onCommand(command, old.socket);
       }
     },
     socket(id: string) {

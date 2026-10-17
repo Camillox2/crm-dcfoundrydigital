@@ -10,6 +10,12 @@ export function useWorkspace(user: AuthenticatedSession | null) {
   const [leads, setLeads] = useState<WorkspaceLead[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    const reload = () => setRefresh((n) => n + 1);
+    window.addEventListener('crm:leads-changed', reload);
+    return () => window.removeEventListener('crm:leads-changed', reload);
+  }, []);
   const request = useCallback(
     async (url: string, init?: RequestInit) => {
       if (!user?.accessToken || user.preview)
@@ -33,7 +39,6 @@ export function useWorkspace(user: AuthenticatedSession | null) {
     [user],
   );
   useEffect(() => {
-    setLeads([]);
     setError(null);
     if (!user?.accessToken || user.preview || !resolveGrantedScope(user.roles, 'lead:read')) return;
     const controller = new AbortController();
@@ -52,7 +57,7 @@ export function useWorkspace(user: AuthenticatedSession | null) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [request, user]);
+  }, [request, user, refresh]);
   const create = async (input: WorkspaceLeadInput) => {
     const data = await request('/api/v1/workspace/leads', {
       method: 'POST',
