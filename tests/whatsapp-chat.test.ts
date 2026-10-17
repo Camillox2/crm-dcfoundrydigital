@@ -219,3 +219,160 @@ it('delivers API → persistent outbox → mocked Baileys → API receipts, and 
     await rm(folder, { recursive: true, force: true });
   }
 }, 30000);
+it('scopes inbox rows, counts unread, reopens closed chats and keeps the old payload', async () => {
+  const database = await testDatabase();
+  const team = randomUUID(),
+    otherTeam = randomUUID(),
+    owner = randomUUID(),
+    teammate = randomUUID(),
+    outsider = randomUUID(),
+    admin = randomUUID();
+  await database.pool.query(
+    `INSERT INTO users(id,email,full_name,password_hash,team_id) VALUES
+     ($1,'owner-inbox@example','Owner','hash',$5),
+     ($2,'team-inbox@example','Team','hash',$5),
+     ($3,'out-inbox@example','Out','hash',$6),
+     ($4,'admin-inbox@example','Admin','hash',NULL)`,
+    [owner, teammate, outsider, admin, team, otherTeam],
+  );
+  const { app, whatsapp } = await buildApiServer({
+    testDatabase: database,
+    whatsappTransport: { publish: async () => {}, close: async () => {} },
+  });
+  const headers = (
+    id: string,
+    roles: ('admin' | 'vendedor' | 'financeiro')[],
+    teamId: string | null,
+  ) => ({
+    authorization: `Bearer ${signAccessToken({ id, email: id + '@test.example', fullName: 'Test', roles, teamId, totpEnabled: false })}`,
+  });
+  try {
+    const sessionId = await (
+      await whatsapp.store()
+    ).connect(
+      { id: owner, teamId: team, scope: 'own' },
+      { provider: 'baileys', importHistory: false },
+    );
+    const inbound = (externalId: string, text: string, historical = false) =>
+      whatsapp.processEvent({
+        id: randomUUID(),
+        sessionId,
+        generation: 1,
+        type: 'messages',
+        messages: [
+          {
+            externalId,
+            jid: '5541999999999@s.whatsapp.net',
+            phone: '+5541999999999',
+            name: 'Cliente Inbox',
+            text,
+            fromMe: false,
+            historical,
+            timestamp: new Date(Date.now() - 120000).toISOString(),
+            type: 'text',
+          },
+        ],
+      });
+    await inbound('in-live', 'Preciso de um site');
+    const leadId = (await database.pool.query('SELECT id FROM workspace_leads')).rows[0].id as string;
+    const teammateLead = (
+      await database.pool.query(
+        `INSERT INTO workspace_leads(owner_id,name,company,phone) VALUES($1,'Equipe','Equipe Ltda','+5541888888888') RETURNING id`,
+        [teammate],
+      )
+    ).rows[0].id as string;
+    await database.pool.query(
+      `INSERT INTO wa_messages(session_id,lead_id,external_id,jid,direction,actor_type,body,sent_at) VALUES($1,$2,'team-1','5541888888888@s.whatsapp.net','inbound','contact','Oi da equipe',now())`,
+      [sessionId, teammateLead],
+    );
+    const list = (id: string, roles: ('admin' | 'vendedor' | 'financeiro')[], teamId: string | null, status = '') =>
+      app.inject({
+        url: `/api/v1/whatsapp/sessions/${sessionId}/conversations${status}`,
+        headers: headers(id, roles, teamId),
+      });
+    const ownerItems = (await list(owner, ['vendedor'], team)).json().items;
+    const teamItems = (await list(teammate, ['financeiro'], team)).json().items;
+    const outsiderItems = (await list(outsider, ['vendedor'], otherTeam)).json().items;
+    const adminItems = (await list(admin, ['admin'], null)).json().items;
+    expect(ownerItems.map((item: { id: string }) => item.id)).toEqual([leadId]);
+    expect(teamItems.map((item: { id: string }) => item.id).sort()).toEqual([leadId, teammateLead].sort());
+    expect(outsiderItems).toEqual([]);
+    expect(adminItems).toHaveLength(2);
+    const item = ownerItems[0];
+    for (const key of [
+      'id',
+      'conversation_id',
+      'name',
+      'company',
+      'phone',
+      'ai_enabled',
+      'last_message',
+      'last_at',
+      'photoUrl',
+    ])
+      expect(item).toHaveProperty(key);
+    expect(item).toMatchObject({
+      status: 'open',
+      last_direction: 'inbound',
+      last_message_type: 'text',
+      last_message: 'Preciso de um site',
+      sla_goal_minutes: 30,
+    });
+    expect(Number(item.unread_count)).toBe(1);
+    expect(item.pending_since).toBeTruthy();
+    expect(item.last_inbound_at).toBeTruthy();
+    const closed = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/whatsapp/sessions/${sessionId}/leads/${leadId}/conversation`,
+      headers: headers(owner, ['vendedor'], team),
+      payload: { status: 'closed' },
+    });
+    expect(closed.statusCode, closed.body).toBe(200);
+    expect((await list(owner, ['vendedor'], team, '?status=open')).json().items).toEqual([]);
+    expect((await list(owner, ['vendedor'], team, '?status=closed')).json().items[0].status).toBe('closed');
+    expect((await list(owner, ['vendedor'], team)).json().items[0].status).toBe('closed');
+    await inbound('in-history', 'Mensagem antiga', true);
+    expect((await list(owner, ['vendedor'], team)).json().items[0].status).toBe('closed');
+    expect(Number((await list(owner, ['vendedor'], team)).json().items[0].unread_count)).toBe(1);
+    await inbound('in-reopen', 'Voltei');
+    const reopened = (await list(owner, ['vendedor'], team)).json().items[0];
+    expect(reopened.status).toBe('open');
+    expect(Number(reopened.unread_count)).toBe(2);
+    const denied = await app.inject({
+      method: 'POST',
+      url: `/api/v1/whatsapp/sessions/${sessionId}/leads/${leadId}/read`,
+      headers: headers(outsider, ['vendedor'], otherTeam),
+    });
+    expect(denied.statusCode).toBe(404);
+    const read = await app.inject({
+      method: 'POST',
+      url: `/api/v1/whatsapp/sessions/${sessionId}/leads/${leadId}/read`,
+      headers: headers(teammate, ['financeiro'], team),
+    });
+    expect(read.statusCode, read.body).toBe(200);
+    expect(Number((await list(owner, ['vendedor'], team)).json().items[0].unread_count)).toBe(0);
+    await database.pool.query(
+      `INSERT INTO wa_messages(session_id,lead_id,external_id,jid,direction,actor_type,body,sent_at,delivery,historical) VALUES($1,$2,'human-1','5541999999999@s.whatsapp.net','outbound','human','Respondido',now(),'sent',false)`,
+      [sessionId, leadId],
+    );
+    expect((await list(owner, ['vendedor'], team)).json().items[0].pending_since).toBeNull();
+    const origin = await app.listen({ port: 0, host: '127.0.0.1' });
+    const stream = await fetch(origin + `/api/v1/whatsapp/sessions/${sessionId}/events`, {
+      headers: headers(admin, ['admin'], null),
+    });
+    const reader = stream.body!.getReader();
+    const first = new TextDecoder().decode((await reader.read()).value);
+    expect(JSON.parse(first.replace(/^data: /, '').trim())).toEqual({ type: 'changed' });
+    await inbound('in-live-2', 'Nova mensagem ao vivo');
+    const frame = new TextDecoder().decode((await reader.read()).value);
+    const payload = JSON.parse(frame.replace(/^data: /, '').trim());
+    expect(payload.type).toBe('changed');
+    expect(payload.event).toBe('message:new');
+    expect(payload.leadId).toBe(leadId);
+    expect(payload.messageId).toEqual(expect.any(String));
+    await reader.cancel();
+  } finally {
+    await app.close();
+    await database.pool.end();
+  }
+}, 30000);

@@ -9,8 +9,20 @@ import { resolveGrantedScope, type WhatsAppEvent } from '@dcfoundry/shared';
 import { z } from 'zod';
 import { requirePermission } from './plugins/auth.js';
 import { WorkspaceError } from './module-store.js';
-import { WhatsAppStore } from './whatsapp-store.js';
+import { WhatsAppStore, type InboxTouch } from './whatsapp-store.js';
 import { applyFoundryControl } from './foundry-control.js';
+export type LiveDetail = {
+  event?: InboxTouch['event'];
+  leadId?: string;
+  messageId?: string;
+};
+function livePayload(detail?: LiveDetail) {
+  const payload: LiveDetail & { type: 'changed' } = { type: 'changed' };
+  if (detail?.event) payload.event = detail.event;
+  if (detail?.leadId) payload.leadId = detail.leadId;
+  if (detail?.messageId) payload.messageId = detail.messageId;
+  return payload;
+}
 const uuid = z.string().uuid();
 const mediaInput = z.object({
   leadId: uuid,
@@ -36,7 +48,7 @@ export class WhatsAppRealtime {
   constructor() {
     this.events.setMaxListeners(100);
   }
-  receive(event: WhatsAppEvent) {
+  receive(event: WhatsAppEvent, touches: InboxTouch[] = []) {
     if (event.type === 'photo' && event.jid) {
       if (this.photos.size >= 200) this.photos.delete(this.photos.keys().next().value!);
       this.photos.set(`${event.sessionId}/${event.generation}/${event.jid}`, {
@@ -47,7 +59,22 @@ export class WhatsAppRealtime {
             : null,
       });
     }
-    this.events.emit(event.sessionId);
+    if (touches.length) {
+      for (const touch of touches) this.events.emit(event.sessionId, touch);
+      return;
+    }
+    const kind: LiveDetail['event'] =
+      event.type === 'messages'
+        ? 'message:new'
+        : event.type === 'receipt'
+          ? 'message:updated'
+          : event.type === 'status' || event.type === 'history' || event.type === 'photo'
+            ? 'conversation:updated'
+            : undefined;
+    this.events.emit(event.sessionId, kind ? { event: kind } : undefined);
+  }
+  notify(sessionId: string, detail?: LiveDetail) {
+    this.events.emit(sessionId, detail);
   }
 }
 export async function registerWhatsAppChat(
@@ -70,7 +97,10 @@ export async function registerWhatsAppChat(
       reply.header('Cache-Control', 'private, no-store');
       const id = uuid.parse((req.params as { id: string }).id),
         store = await repo(),
-        user = req.authUser!;
+        user = req.authUser!,
+        filter = z
+          .object({ status: z.enum(['open', 'closed', 'all']).default('all') })
+          .parse(req.query);
       const waScope = resolveGrantedScope(user.roles, 'whatsapp:read');
       const leadScope =
         resolveGrantedScope(user.roles, 'lead:read') ??
@@ -82,10 +112,17 @@ export async function registerWhatsAppChat(
       const rows = (
         await store.pool.query(
           `SELECT l.id,c.id AS conversation_id,l.name,l.company,l.phone,c.ai_enabled,m.body AS last_message,m.sent_at AS last_at,
+       m.direction AS last_direction,m.message_type AS last_message_type,c.status,c.last_inbound_at,
+       l.created_at,l.campaign,l.scope_summary,COALESCE(NULLIF(l.utm_source,''),NULLIF(l.campaign,''),'WhatsApp') AS source,
+       COALESCE(st.sla_minutes,30) AS sla_goal_minutes,
+       COALESCE((SELECT count(*)::int FROM wa_messages u WHERE u.session_id=c.session_id AND u.lead_id=c.lead_id AND u.direction='inbound' AND u.historical=false AND u.sent_at>COALESCE(c.last_read_at,'epoch'::timestamptz)),0) AS unread_count,
+       (SELECT min(inbound.sent_at) FROM wa_messages inbound WHERE inbound.session_id=c.session_id AND inbound.lead_id=c.lead_id AND inbound.direction='inbound' AND inbound.historical=false AND inbound.sent_at<=now() AND inbound.sent_at>COALESCE((SELECT max(human.sent_at) FROM wa_messages human WHERE human.session_id=c.session_id AND human.lead_id=c.lead_id AND human.direction='outbound' AND human.actor_type='human' AND human.historical=false AND human.delivery IN ('sent','delivered','read','received') AND human.sent_at<=now()),'-infinity'::timestamptz)) AS pending_since,
        COALESCE((SELECT jid FROM wa_identities WHERE session_id=$1 AND lead_id=l.id ORDER BY created_at DESC LIMIT 1),CASE WHEN l.phone ~ '^\\+[1-9][0-9]{7,14}$' THEN substring(l.phone FROM 2)||'@s.whatsapp.net' ELSE NULL END) AS jid
        FROM wa_conversations c JOIN workspace_leads l ON l.id=c.lead_id LEFT JOIN users u ON u.id=l.owner_id
-       LEFT JOIN LATERAL (SELECT body,sent_at FROM wa_messages WHERE session_id=$1 AND lead_id=l.id ORDER BY sent_at DESC,id DESC LIMIT 1) m ON true
+       LEFT JOIN pipeline_stages st ON st.pipeline_id=l.pipeline_id AND st.slug=l.stage
+       LEFT JOIN LATERAL (SELECT body,sent_at,direction,message_type FROM wa_messages WHERE session_id=$1 AND lead_id=l.id ORDER BY sent_at DESC,id DESC LIMIT 1) m ON true
        WHERE l.archived_at IS NULL AND c.session_id=$1
+       AND ($8::text='all' OR c.status=$8)
        AND ($2::boolean OR l.owner_id=$3::uuid OR ($4::boolean AND u.team_id=$5::uuid))
        AND ($6::boolean OR l.owner_id=$3::uuid OR ($7::boolean AND u.team_id=$5::uuid))
        ORDER BY m.sent_at DESC NULLS LAST,l.id LIMIT 100`,
@@ -97,6 +134,7 @@ export async function registerWhatsAppChat(
             user.teamId ?? null,
             leadScope === 'all',
             leadScope === 'team',
+            filter.status,
           ],
         )
       ).rows;
@@ -302,7 +340,11 @@ export async function registerWhatsAppChat(
       }
       await onHumanTakeover(input.leadId).catch(() => undefined);
       await flush().catch(() => undefined);
-      realtime.events.emit(input.id);
+      realtime.notify(input.id, {
+        event: 'message:new',
+        leadId: input.leadId,
+        messageId: body.requestId,
+      });
       return reply.status(202).send({ id: body.requestId, delivery: 'queued' });
     },
   );
@@ -395,6 +437,39 @@ export async function registerWhatsAppChat(
       return { url: null, pending: true };
     },
   );
+  app.put(
+    '/api/v1/whatsapp/sessions/:id/leads/:leadId/conversation',
+    { preHandler: [requirePermission('whatsapp:create')] },
+    async (req) => {
+      const { store, input } = await access(req, 'create');
+      const body = z.object({ status: z.enum(['open', 'closed']) }).parse(req.body);
+      const row = (
+        await store.pool.query(
+          `UPDATE wa_conversations SET status=$3, closed_at=CASE WHEN $3='closed' THEN now() ELSE NULL END, updated_at=now() WHERE session_id=$1 AND lead_id=$2 RETURNING status, closed_at`,
+          [input.id, input.leadId, body.status],
+        )
+      ).rows[0];
+      if (!row) throw new WorkspaceError(404, 'Conversa indisponível.');
+      realtime.notify(input.id, { event: 'conversation:updated', leadId: input.leadId });
+      return { lead_id: input.leadId, status: row.status, closed_at: row.closed_at };
+    },
+  );
+  app.post(
+    '/api/v1/whatsapp/sessions/:id/leads/:leadId/read',
+    { preHandler: [requirePermission('whatsapp:read')] },
+    async (req) => {
+      const { store, input } = await access(req, 'read');
+      const row = (
+        await store.pool.query(
+          `UPDATE wa_conversations SET last_read_at=GREATEST(now(), COALESCE((SELECT max(sent_at) FROM wa_messages WHERE session_id=$1 AND lead_id=$2 AND direction='inbound'), now())), updated_at=now() WHERE session_id=$1 AND lead_id=$2 RETURNING last_read_at`,
+          [input.id, input.leadId],
+        )
+      ).rows[0];
+      if (!row) throw new WorkspaceError(404, 'Conversa indisponível.');
+      realtime.notify(input.id, { event: 'conversation:updated', leadId: input.leadId });
+      return { lead_id: input.leadId, last_read_at: row.last_read_at, unread_count: 0 };
+    },
+  );
   app.get(
     '/api/v1/whatsapp/sessions/:id/events',
     { preHandler: [requirePermission('whatsapp:read')] },
@@ -413,8 +488,9 @@ export async function registerWhatsAppChat(
         Connection: 'keep-alive',
         'X-Accel-Buffering': 'no',
       });
-      const changed = () => {
-        if (!reply.raw.destroyed) reply.raw.write('data: {"type":"changed"}\n\n');
+      const changed = (detail?: LiveDetail) => {
+        if (!reply.raw.destroyed)
+          reply.raw.write(`data: ${JSON.stringify(livePayload(detail))}\n\n`);
       };
       changed();
       realtime.events.on(id, changed);

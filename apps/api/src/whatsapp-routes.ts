@@ -22,8 +22,8 @@ export async function registerWhatsAppRoutes(
   const realtime = new WhatsAppRealtime();
   let agent: ((event: import('@dcfoundry/shared').WhatsAppEvent) => Promise<void>) | undefined;
   const processEvent = async (event: import('@dcfoundry/shared').WhatsAppEvent) => {
-    await (await store()).ingest(event);
-    realtime.receive(event);
+    const ingested = await (await store()).ingest(event);
+    realtime.receive(event, ingested.touches);
     await agent?.(event);
   };
   const store = async () => {

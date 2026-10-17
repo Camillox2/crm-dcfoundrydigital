@@ -9,6 +9,15 @@ import type { DatabaseConnectionResult } from '@dcfoundry/db';
 import type { WorkspaceActor } from './workspace-store.js';
 import { WorkspaceError } from './module-store.js';
 type Pool = DatabaseConnectionResult['pool'];
+export type InboxTouch = {
+  event: 'message:new' | 'message:updated' | 'conversation:updated';
+  leadId: string;
+  messageId?: string;
+};
+export type IngestResult = string[] & { touches: InboxTouch[] };
+function ingestResult(created: string[], touches: InboxTouch[] = []): IngestResult {
+  return Object.assign(created, { touches });
+}
 const allowed = `(s.owner_id=$2::uuid OR $3::boolean OR ($4::boolean AND s.owner_id IN (SELECT id FROM users WHERE team_id=$5::uuid)))`;
 const args = (id: string, a: WorkspaceActor) => [
   id,
@@ -191,9 +200,10 @@ export class WhatsAppStore {
         : undefined,
     }));
   }
-  async ingest(event: WhatsAppEvent) {
+  async ingest(event: WhatsAppEvent): Promise<IngestResult> {
     const client = await this.pool.connect();
     const created: string[] = [];
+    const touches: InboxTouch[] = [];
     try {
       await client.query('BEGIN');
       const receipt = await client.query(
@@ -202,7 +212,7 @@ export class WhatsAppStore {
       );
       if (!receipt.rows.length) {
         await client.query('COMMIT');
-        return created;
+        return ingestResult(created);
       }
       const session = (
         await client.query('SELECT * FROM wa_sessions WHERE id=$1 FOR UPDATE', [event.sessionId])
@@ -213,7 +223,7 @@ export class WhatsAppStore {
         (!session.enabled && event.status !== 'disconnected')
       ) {
         await client.query('COMMIT');
-        return created;
+        return ingestResult(created);
       }
       if (event.type === 'status')
         await client.query(
@@ -231,11 +241,18 @@ export class WhatsAppStore {
           'UPDATE wa_sessions SET history_progress=$2,heartbeat_at=now(),updated_at=now() WHERE id=$1',
           [event.sessionId, Math.round(event.historyProgress ?? 0)],
         );
-      if (event.type === 'receipt' && event.externalId && event.jid)
-        await client.query(
-          `UPDATE wa_messages SET delivery=CASE WHEN delivery='read' THEN 'read' WHEN delivery='delivered' AND $4::text='sent' THEN 'delivered' ELSE $4::text END,sent_at=CASE WHEN delivery='queued' AND $4::text='sent' THEN now() ELSE sent_at END WHERE session_id=$1 AND external_id=$2 AND jid=$3 AND direction='outbound'`,
+      if (event.type === 'receipt' && event.externalId && event.jid) {
+        const updated = await client.query(
+          `UPDATE wa_messages SET delivery=CASE WHEN delivery='read' THEN 'read' WHEN delivery='delivered' AND $4::text='sent' THEN 'delivered' ELSE $4::text END,sent_at=CASE WHEN delivery='queued' AND $4::text='sent' THEN now() ELSE sent_at END WHERE session_id=$1 AND external_id=$2 AND jid=$3 AND direction='outbound' RETURNING id, lead_id`,
           [event.sessionId, event.externalId, event.jid, event.delivery ?? 'sent'],
         );
+        for (const row of updated.rows)
+          touches.push({
+            event: 'message:updated',
+            leadId: row.lead_id,
+            messageId: row.id,
+          });
+      }
       for (const m of event.messages ?? []) {
         const identity = directIdentity(
           m.jid,
@@ -273,8 +290,8 @@ export class WhatsAppStore {
           `INSERT INTO wa_identities(session_id,lead_id,jid,phone_e164) VALUES($1,$2,$3,$4) ON CONFLICT(session_id,jid) DO UPDATE SET phone_e164=COALESCE(EXCLUDED.phone_e164,wa_identities.phone_e164)`,
           [session.id, lead.id, identity.jid, phone],
         );
-        await client.query(
-          `INSERT INTO wa_messages(session_id,lead_id,external_id,jid,direction,actor_type,body,historical,sent_at,message_type,delivery,media_key,mime_type,file_name,media_bytes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT(session_id,jid,external_id) DO NOTHING`,
+        const inserted = await client.query(
+          `INSERT INTO wa_messages(session_id,lead_id,external_id,jid,direction,actor_type,body,historical,sent_at,message_type,delivery,media_key,mime_type,file_name,media_bytes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT(session_id,jid,external_id) DO NOTHING RETURNING id`,
           [
             session.id,
             lead.id,
@@ -293,9 +310,15 @@ export class WhatsAppStore {
             m.mediaBytes ?? null,
           ],
         );
+        if (inserted.rows[0])
+          touches.push({
+            event: 'message:new',
+            leadId: lead.id,
+            messageId: inserted.rows[0].id,
+          });
       }
       await client.query('COMMIT');
-      return created;
+      return ingestResult(created, touches);
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;
