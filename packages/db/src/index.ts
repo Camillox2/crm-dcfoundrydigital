@@ -13,7 +13,7 @@ export interface SeedEquipmentCatalogItem {
 }
 
 /**
- * Dados iniciais (Seeds) de papéis RBAC, funis e catálogo hospitalar / home care
+ * Dados iniciais (Seeds) de papéis RBAC e Catálogo de Soluções & Infraestrutura DC Foundry Digital
  */
 export const INITIAL_ROLES_SEED = (Object.keys(ROLE_PERMISSIONS_MATRIX) as RoleName[]).map((slug) => ({
   slug,
@@ -23,61 +23,62 @@ export const INITIAL_ROLES_SEED = (Object.keys(ROLE_PERMISSIONS_MATRIX) as RoleN
 
 export const INITIAL_EQUIPMENT_CATALOG_SEED: SeedEquipmentCatalogItem[] = [
   {
-    sku: 'CAMA-ELE-3M-01',
-    name: 'Cama Hospitalar Motorizada 3 Movimentos (Fowler + Elevação)',
+    sku: 'DCF-SQUAD-PRO',
+    name: 'Squad Dedicada Full-Stack & IA (Retainer Mensal)',
     category: 'bed',
-    salePriceCents: 689000,
-    dailyRentalCents: 4500,
-    weeklyRentalCents: 19500,
-    monthlyRentalCents: 49000,
-    depositCautionCents: 30000,
+    salePriceCents: 4800000,
+    dailyRentalCents: 95000,
+    weeklyRentalCents: 380000,
+    monthlyRentalCents: 1250000,
+    depositCautionCents: 0,
     units: [
-      { serialNumber: 'SN-EL3M-2026-001', assetTag: 'PAT-0001', status: 'available' },
-      { serialNumber: 'SN-EL3M-2026-002', assetTag: 'PAT-0002', status: 'rented' },
-      { serialNumber: 'SN-EL3M-2026-003', assetTag: 'PAT-0003', status: 'sanitization' },
+      { serialNumber: 'SN-SQD-2026-001', assetTag: 'SQUAD-ALPHA', status: 'available' },
+      { serialNumber: 'SN-SQD-2026-002', assetTag: 'SQUAD-BETA', status: 'rented' },
+      { serialNumber: 'SN-SQD-2026-003', assetTag: 'SQUAD-GAMMA', status: 'available' },
     ],
   },
   {
-    sku: 'CAMA-MAN-2M-01',
-    name: 'Cama Hospitalar Manual 2 Manivelas com Grades Rebatíveis',
-    category: 'bed',
-    salePriceCents: 329000,
-    dailyRentalCents: 2800,
-    weeklyRentalCents: 12000,
-    monthlyRentalCents: 29000,
-    depositCautionCents: 20000,
-    units: [
-      { serialNumber: 'SN-MN2M-2026-010', assetTag: 'PAT-0010', status: 'available' },
-      { serialNumber: 'SN-MN2M-2026-011', assetTag: 'PAT-0011', status: 'available' },
-    ],
-  },
-  {
-    sku: 'COL-PNEU-01',
-    name: 'Colchão Pneumático Anti-Escaras com Compressor Silencioso',
-    category: 'mattress',
-    salePriceCents: 69000,
-    dailyRentalCents: 1200,
-    weeklyRentalCents: 5500,
-    monthlyRentalCents: 13000,
-    depositCautionCents: 10000,
-    units: [
-      { serialNumber: 'SN-CPNE-2026-050', assetTag: 'PAT-0050', status: 'available' },
-    ],
-  },
-  {
-    sku: 'CONC-O2-5L',
-    name: 'Concentrador de Oxigênio Estacionário 5L/min',
+    sku: 'DCF-AI-AGENT-WA',
+    name: 'Agente Autônomo WhatsApp + RAG pgvector (Instância Dedicada)',
     category: 'oxygen',
-    salePriceCents: 495000,
-    dailyRentalCents: 3900,
-    weeklyRentalCents: 17000,
-    monthlyRentalCents: 42000,
-    depositCautionCents: 25000,
+    salePriceCents: 1490000,
+    dailyRentalCents: 25000,
+    weeklyRentalCents: 95000,
+    monthlyRentalCents: 290000,
+    depositCautionCents: 0,
     units: [
-      { serialNumber: 'SN-O25L-2026-080', assetTag: 'PAT-0080', status: 'available' },
+      { serialNumber: 'SN-AIN-2026-010', assetTag: 'NODE-AI-01', status: 'available' },
+      { serialNumber: 'SN-AIN-2026-011', assetTag: 'NODE-AI-02', status: 'rented' },
+    ],
+  },
+  {
+    sku: 'DCF-CLOUD-VPS',
+    name: 'Cluster Cloud Dedicado High-Availability + CI/CD',
+    category: 'mattress',
+    salePriceCents: 890000,
+    dailyRentalCents: 15000,
+    weeklyRentalCents: 55000,
+    monthlyRentalCents: 165000,
+    depositCautionCents: 0,
+    units: [
+      { serialNumber: 'SN-CLD-2026-050', assetTag: 'SRV-KVM-01', status: 'available' },
+    ],
+  },
+  {
+    sku: 'DCF-ADS-ENGINE',
+    name: 'Setup & Motor de Atribuição Google Ads Offline Conversions',
+    category: 'accessory',
+    salePriceCents: 750000,
+    dailyRentalCents: 12000,
+    weeklyRentalCents: 45000,
+    monthlyRentalCents: 140000,
+    depositCautionCents: 0,
+    units: [
+      { serialNumber: 'SN-ADS-2026-080', assetTag: 'ADS-PIPE-01', status: 'available' },
     ],
   },
 ];
 
 export * from './schema.js';
 export * from './client.js';
+export * from './operations.js';

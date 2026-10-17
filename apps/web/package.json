@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@dcfoundry/ai": "workspace:*",
+    "@dcfoundry/db": "workspace:*",
     "@dcfoundry/shared": "workspace:*",
+    "@dcfoundry/tracking": "workspace:*",
     "@dcfoundry/ui": "workspace:*",
     "framer-motion": "^12.4.7",
     "lucide-react": "^0.475.0",

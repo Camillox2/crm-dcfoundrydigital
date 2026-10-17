@@ -54,7 +54,7 @@ export async function buildApiServer(): Promise<{
     {
       id: '22222222-2222-4222-8222-222222222222',
       email: 'vendedor@dcfoundrydigital.com',
-      fullName: 'Lucas Vendedor Home Care',
+      fullName: 'Lucas Consultor Comercial',
       passwordHash: hashPassword('Vendedor#2026'),
       teamId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       roles: ['vendedor'],

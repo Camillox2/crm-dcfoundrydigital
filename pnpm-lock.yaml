@@ -74,9 +74,18 @@ importers:
 
   apps/web:
     dependencies:
+      '@dcfoundry/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@dcfoundry/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@dcfoundry/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@dcfoundry/tracking':
+        specifier: workspace:*
+        version: link:../../packages/tracking
       '@dcfoundry/ui':
         specifier: workspace:*
         version: link:../../packages/ui
