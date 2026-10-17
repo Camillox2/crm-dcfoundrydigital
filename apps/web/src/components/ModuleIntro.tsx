@@ -14,6 +14,7 @@ import {
 import { Mark } from '@dcfoundry/ui';
 
 const modules = {
+  portal:{title:'Seu cliente participa.',accent:'A entrega avança.',text:'Documentos, aprovações e solicitações conectados em um só espaço.',icon:Globe},
   settings:{title:'Sua identidade.',accent:'Em um lugar.',text:'Mantenha os dados da contratada para propostas, contratos e contatos.',icon:ShieldCheck},
   reports: {
     title: 'Dados conectados.',

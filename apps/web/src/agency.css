@@ -641,3 +641,156 @@
     padding: 12px;
   }
 }
+.client-portal {
+  max-width: 1180px;
+  margin: auto;
+  padding: clamp(16px, 4vw, 56px);
+  color: var(--color-ink, #15323e);
+}
+.portal-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 48px 32px;
+  background: #e4f0ff;
+  border-radius: 28px;
+  margin-bottom: 24px;
+}
+.portal-hero > span {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+}
+.portal-hero h1 {
+  font-size: clamp(32px, 6vw, 62px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+.portal-hero em {
+  color: #1765da;
+  font-style: normal;
+}
+.portal-hero svg {
+  position: absolute;
+  width: 42%;
+  right: 0;
+  bottom: 0;
+  opacity: 0.3;
+  color: #1765da;
+  pointer-events: none;
+}
+.portal-hero path {
+  stroke-dasharray: 1;
+  animation: portal-line 2s ease both;
+}
+@keyframes portal-line {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 24px 0;
+}
+.portal-grid > *,
+.portal-document,
+.portal-share {
+  min-width: 0;
+}
+.portal-grid h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+}
+.portal-document {
+  border-top: 1px solid #dce6f1;
+  padding: 20px 0;
+}
+.portal-document > span {
+  display: block;
+  font-size: 12px;
+  margin: 8px 0;
+  color: #5b7086;
+}
+.preserve-text,
+.request-timeline p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.portal-ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #dce6f1;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 16px;
+  margin: 10px 0;
+  cursor: pointer;
+}
+.portal-ticket span,
+.portal-status {
+  color: #516c87;
+  font-size: 12px;
+}
+.request-timeline {
+  list-style: none;
+  padding: 0 0 0 18px;
+  border-left: 2px solid #bed4fa;
+}
+.request-timeline li {
+  position: relative;
+  padding: 12px 0 18px;
+}
+.request-timeline li:before {
+  position: absolute;
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: #1765da;
+  border-radius: 50%;
+  left: -24px;
+  top: 16px;
+}
+.request-timeline time {
+  display: block;
+  font-size: 11px;
+  color: #63758a;
+  margin-top: 4px;
+}
+.portal-share {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.portal-share input {
+  width: 100%;
+  min-width: 0;
+}
+.client-portal footer {
+  font-size: 12px;
+  padding: 20px 0;
+}
+@media (max-width: 760px) {
+  .portal-grid {
+    grid-template-columns: 1fr;
+  }
+  .portal-hero {
+    padding: 30px 22px;
+  }
+  .client-portal {
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .portal-hero path {
+    animation: none;
+  }
+}

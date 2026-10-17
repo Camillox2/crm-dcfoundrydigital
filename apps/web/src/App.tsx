@@ -42,6 +42,12 @@ const BlogStudio = lazy(() =>
 const CompanySettings = lazy(() =>
   import('./components/modules/CompanySettings.js').then((m) => ({ default: m.CompanySettings })),
 );
+const ClientPortal = lazy(() =>
+  import('./pages/ClientPortal.js').then((m) => ({ default: m.ClientPortal })),
+);
+const ClientPortalWorkspace = lazy(() =>
+  import('./pages/ClientPortal.js').then((m) => ({ default: m.ClientPortalWorkspace })),
+);
 const ServiceContracts = lazy(() =>
   import('./components/modules/ServiceContracts.js').then((m) => ({ default: m.ServiceContracts })),
 );
@@ -146,6 +152,12 @@ export function App() {
     return (
       <Suspense fallback={<p>Carregando documento…</p>}>
         <ContractSignaturePage token={window.location.pathname.split('/')[2] ?? ''} />
+      </Suspense>
+    );
+  if (window.location.pathname.startsWith('/portal/'))
+    return (
+      <Suspense fallback={<p>Abrindo portal…</p>}>
+        <ClientPortal />
       </Suspense>
     );
   if (!user) return <LoginPage onAuthenticated={setUser} />;
@@ -448,6 +460,7 @@ export function App() {
                 {page === 'blog' && <BlogStudio user={user} />}
                 {page === 'contracts' && <ServiceContracts user={user} leads={workspace.leads} />}
                 {page === 'settings' && <CompanySettings user={user} />}
+                {page === 'portal' && <ClientPortalWorkspace user={user} leads={workspace.leads} />}
                 {page === 'finance' && (
                   <RecordsModule kind="invoice" user={user} leads={workspace.leads} />
                 )}

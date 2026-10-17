@@ -12,6 +12,55 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { users, pipelines } from './schema.js';
+export const clientPortalLinks = pgTable('client_portal_links', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  leadId: uuid('lead_id').notNull(),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
+  tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const serviceRequests = pgTable('service_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  leadId: uuid('lead_id').notNull(),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
+  title: varchar('title', { length: 180 }).notNull(),
+  kind: varchar('kind', { length: 24 }).notNull(),
+  description: text('description').notNull(),
+  status: varchar('status', { length: 24 }).notNull().default('open'),
+  priority: varchar('priority', { length: 16 }).notNull().default('normal'),
+  version: integer('version').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const serviceRequestEvents = pgTable('service_request_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  requestId: uuid('request_id')
+    .notNull()
+    .references(() => serviceRequests.id),
+  actorType: varchar('actor_type', { length: 16 }).notNull(),
+  actorId: uuid('actor_id').references(() => users.id),
+  message: text('message').notNull(),
+  status: varchar('status', { length: 24 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const proposalAcceptances = pgTable('proposal_acceptances', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  proposalId: uuid('proposal_id').notNull(),
+  proposalVersion: integer('proposal_version').notNull(),
+  portalId: uuid('portal_id')
+    .notNull()
+    .references(() => clientPortalLinks.id),
+  name: varchar('name', { length: 180 }).notNull(),
+  ipAddress: varchar('ip_address', { length: 64 }).notNull(),
+  userAgent: varchar('user_agent', { length: 500 }).notNull(),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }).notNull().defaultNow(),
+});
 export const workspaceLeads = pgTable('workspace_leads', {
   id: uuid('id').defaultRandom().primaryKey(),
   ownerId: uuid('owner_id')
@@ -322,9 +371,8 @@ export const agencyProposalVersions = pgTable('agency_proposals_versions', {
     .references(() => agencyProposals.id),
   version: integer('version').notNull(),
   ...proposalFields(),
-  actorId: uuid('actor_id')
-    .notNull()
-    .references(() => users.id),
+  actorId: uuid('actor_id').references(() => users.id),
+  actorType: varchar('actor_type',{length:16}).notNull().default('user'),
   savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
 });
 export const agencyServiceContracts = pgTable('service_contracts', {

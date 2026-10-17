@@ -48,7 +48,8 @@ export type WorkspacePage =
   | 'projects'
   | 'agenda'
   | 'site'
-  | 'settings';
+  | 'settings'
+  | 'portal';
 // Company legal identity is available through the existing settings permission.
 // Each surface still uses the existing role and owner/team boundaries.
 export interface DailyInsight {

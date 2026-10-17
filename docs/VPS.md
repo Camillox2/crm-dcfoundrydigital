@@ -54,6 +54,10 @@ O link público dura sete dias e pode ser renovado por um usuário autorizado. A
 
 Requisitos: Node.js 22 atualizado, Corepack/pnpm 10.6, Docker com Compose e um domínio apontado para o servidor. Esta revisão não executa deploy no VPS.
 
+### Portal e solicitações — item 6
+
+A migration `0011_client_portal.sql` adiciona links pessoais de 30 dias, solicitações e linha do tempo. Abra **Portal & solicitações**, escolha o lead e gere o link. Ele mostra apenas documentos vinculados a esse lead, nunca rascunhos de propostas nem conversas internas. O cliente pode aceitar a versão enviada e abrir ou responder solicitações de ajuste, suporte e manutenção. A equipe altera o status com controle de versão. O aceite guarda o nome, IP e versão sem atribuir a ação a um funcionário. Revogar o link bloqueia os próximos acessos. Não há variável nova neste item; links devem usar a mesma origem HTTPS do CRM.
+
 ## O que inicia limpo
 
 O seed cria somente os sete papéis de acesso, um pipeline comercial e suas quatro etapas. Não insere clientes, produtos, contratos, faturas, campanhas ou artigos. O administrador é criado por um comando separado. Contas e senhas de demonstração existem apenas em fixtures dos testes; a API não as carrega. O frontend de produção não oferece o botão de prévia local.

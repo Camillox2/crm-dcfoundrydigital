@@ -31,6 +31,7 @@ import type { FoundryGenerate } from './foundry-engine.js';
 import { registerPipelineRoutes } from './pipeline-routes.js';
 import { registerCompanySettings } from './company-settings.js';
 import { registerServiceContractRoutes } from './service-contract-routes.js';
+import { registerPortalRoutes } from './portal-routes.js';
 import type { ContractMailer } from './contract-delivery.js';
 
 export interface DemoUserRecord {
@@ -125,6 +126,7 @@ export async function buildApiServer(
   await registerPipelineRoutes(app, database);
   await registerCompanySettings(app, database);
   await registerServiceContractRoutes(app, database, whatsapp, options.contractMailer);
+  await registerPortalRoutes(app, database);
   app.addHook('onClose', async () => {
     if (connection) await (await connection).pool.end();
   });
