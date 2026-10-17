@@ -1,14 +1,19 @@
 import type { DatabaseConnectionResult } from '@dcfoundry/db';
-import type { AiAttempt } from './assistant-provider.js';
+import { askGemini, type AiAttempt } from './assistant-provider.js';
 
 type Pool = DatabaseConnectionResult['pool'];
 const ZONE = 'America/Sao_Paulo';
 
 /** Best effort: usage tracking never blocks or fails a chat answer. */
-export function recordAiAttempt(pool: Pool, actorId: string | null, attempt: AiAttempt) {
+export function recordAiAttempt(
+  pool: Pool,
+  actorId: string | null,
+  attempt: AiAttempt,
+  feature: AiFeature = 'assistant_chat',
+) {
   pool
     .query(
-      'INSERT INTO ai_usage_events(model,outcome,http_status,latency_ms,fallback_position,prompt_tokens,output_tokens,total_tokens,actor_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      'INSERT INTO ai_usage_events(model,outcome,http_status,latency_ms,fallback_position,prompt_tokens,output_tokens,total_tokens,actor_id,feature) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
       [
         attempt.model.slice(0, 120),
         attempt.outcome,
@@ -19,14 +24,31 @@ export function recordAiAttempt(pool: Pool, actorId: string | null, attempt: AiA
         attempt.outputTokens,
         attempt.totalTokens,
         actorId,
+        feature,
       ],
     )
     .catch(() => {});
 }
 
+/** Channel that consumed the Gemini call (stored in ai_usage_events.feature). */
+export type AiFeature =
+  | 'assistant_chat'
+  | 'whatsapp_auto'
+  | 'site_chat'
+  | 'foundry_lab'
+  | 'lead_summary';
+
+/** askGemini with usage tracking, same signature as FoundryGenerate. */
+export function trackedGemini(pool: Pool, feature: AiFeature, actorId: string | null = null) {
+  return (message: string, context: string) =>
+    askGemini(message, context, fetch, (attempt) =>
+      recordAiAttempt(pool, actorId, attempt, feature),
+    );
+}
+
 export async function aiUsageSummary(pool: Pool, days: 7 | 30) {
   const since = `now() - make_interval(days => $1::int)`;
-  const [models, daily, totals] = await Promise.all([
+  const [models, daily, totals, features] = await Promise.all([
     pool.query(
       `SELECT model, count(*)::int AS calls,
         count(*) FILTER (WHERE outcome='success')::int AS success,
@@ -60,6 +82,16 @@ export async function aiUsageSummary(pool: Pool, days: 7 | 30) {
        FROM ai_usage_events WHERE created_at >= ${since}`,
       [days],
     ),
+    pool.query(
+      `SELECT feature, count(*)::int AS calls,
+        count(*) FILTER (WHERE outcome='success')::int AS success,
+        count(*) FILTER (WHERE outcome='quota')::int AS quota,
+        count(*) FILTER (WHERE outcome='error')::int AS errors,
+        coalesce(sum(total_tokens),0)::bigint AS tokens
+       FROM ai_usage_events WHERE created_at >= ${since}
+       GROUP BY feature ORDER BY calls DESC, feature`,
+      [days],
+    ),
   ]);
   const rate = (r: { calls: number; success: number }) =>
     r.calls ? Math.round((r.success / r.calls) * 1000) / 10 : 0;
@@ -71,5 +103,6 @@ export async function aiUsageSummary(pool: Pool, days: 7 | 30) {
     totals: { ...total, successRate: rate(total) },
     byModel: models.rows.map((r) => ({ ...num(r), successRate: rate(r) })),
     daily: daily.rows.map(num),
+    byFeature: features.rows.map((r) => ({ ...num(r), successRate: rate(r) })),
   };
 }

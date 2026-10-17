@@ -10,3 +10,6 @@ backups
 **/*.log
 tests
 coverage
+admin-credentials.txt
+*.patch
+.pnpm-store

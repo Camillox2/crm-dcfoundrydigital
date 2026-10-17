@@ -13,6 +13,7 @@ import {
 } from './foundry-engine.js';
 import type { registerWhatsAppRoutes } from './whatsapp-routes.js';
 import { changeFoundryControl } from './foundry-control.js';
+import { trackedGemini } from './ai-usage.js';
 type Database = () => Promise<DatabaseConnectionResult> | null;
 export async function registerFoundryRoutes(
   app: FastifyInstance,
@@ -156,7 +157,7 @@ export async function registerFoundryRoutes(
         )
       ).rows.reverse();
       const context = await loadFoundryContext(db, 'internal'),
-        provider = generate ?? (await import('./assistant-provider.js')).askGemini;
+        provider = generate ?? trackedGemini(db, 'lead_summary', req.authUser!.id);
       const result = await provider(
         `Resuma em português, sem inferir fatos ou promessas. Liste projeto, objetivo, orçamento informado, prazo informado, decisão, urgência, lacunas e próximo contato. Dados: ${JSON.stringify({ name: lead.name, company: lead.company, projectType: lead.project_type, objective: lead.objective, budgetCents: lead.budget_cents, deadline: lead.deadline_text, decisionMaker: lead.decision_maker, urgency: lead.urgency, messages })}`,
         `${FOUNDRY_POLICY}\n${context.context}`,
@@ -181,7 +182,7 @@ export async function registerFoundryRoutes(
         scenario = FOUNDRY_SCENARIOS.find((s) => s.slug === input.scenario);
       if (!scenario) throw new WorkspaceError(400, 'Cenário não encontrado.');
       const db = await pool(),
-        result = await evaluateFoundry(db, scenario.message, generate),
+        result = await evaluateFoundry(db, scenario.message, generate, '', 'foundry_lab'),
         passed = result.handoff === scenario.expectedHandoff;
       const row = (
         await db.query(

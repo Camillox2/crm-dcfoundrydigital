@@ -9,6 +9,7 @@ import {
 import type { WhatsAppEvent } from '@dcfoundry/shared';
 import type { CrmPool } from './agency-access.js';
 import { askGemini } from './assistant-provider.js';
+import { trackedGemini, type AiFeature } from './ai-usage.js';
 import { bookFoundryMeeting } from './calendar.js';
 export type FoundryGenerate = (
   message: string,
@@ -45,7 +46,9 @@ export async function evaluateFoundry(
   message: string,
   generate: FoundryGenerate = askGemini,
   known = '',
+  feature?: AiFeature,
 ) {
+  if (feature && generate === askGemini) generate = trackedGemini(pool, feature);
   const source = await loadFoundryContext(pool);
   if (wantsHuman(message))
     return { ...parseFoundryTurn('', message, source.knowledge), model: 'policy' };
@@ -102,6 +105,7 @@ export class FoundryEngine {
                   decisionMaker: row.decision_maker,
                   urgency: row.urgency,
                 }),
+                'whatsapp_auto',
               )
             : {
                 answer:

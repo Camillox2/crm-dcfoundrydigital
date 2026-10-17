@@ -92,6 +92,7 @@ export class WebsiteChat {
               decisionMaker: lead.decision_maker,
               urgency: lead.urgency,
             }),
+            'site_chat',
           )
         : {
             answer: 'Sua mensagem foi registrada. Vou encaminhar para uma pessoa da equipe.',

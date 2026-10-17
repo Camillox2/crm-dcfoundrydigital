@@ -16,7 +16,15 @@ interface Usage {
   totals: Counts & { successRate: number };
   byModel: (Counts & { model: string; successRate: number; avgLatencyMs: number })[];
   daily: (Counts & { date: string })[];
+  byFeature?: (Counts & { feature: string; successRate: number })[];
 }
+const FEATURE_LABEL: Record<string, string> = {
+  assistant_chat: 'Chat interno',
+  whatsapp_auto: 'WhatsApp (automático)',
+  site_chat: 'Chat do site',
+  foundry_lab: 'Laboratório',
+  lead_summary: 'Resumo de lead',
+};
 const fmt = new Intl.NumberFormat('pt-BR');
 
 function ModelBars({ rows }: { rows: Usage['byModel'] }) {
@@ -157,6 +165,34 @@ export function AiUsagePanel({ user }: { user: AuthenticatedSession }) {
               <span className="line-calls" /> chamadas <span className="line-success" /> sucesso
             </p>
           </Card>
+          {(usage.byFeature?.length ?? 0) > 0 && (
+            <Card>
+              <table className="ai-usage-table">
+                <thead>
+                  <tr>
+                    <th>Canal</th>
+                    <th>Chamadas</th>
+                    <th>Sucesso</th>
+                    <th>429</th>
+                    <th>Erros</th>
+                    <th>Tokens</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usage.byFeature!.map((r) => (
+                    <tr key={r.feature}>
+                      <td>{FEATURE_LABEL[r.feature] ?? r.feature}</td>
+                      <td>{r.calls}</td>
+                      <td>{r.successRate}%</td>
+                      <td>{r.quota}</td>
+                      <td>{r.errors}</td>
+                      <td>{fmt.format(r.tokens)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
           {usage.byModel.length > 0 && (
             <Card>
               <table className="ai-usage-table">
