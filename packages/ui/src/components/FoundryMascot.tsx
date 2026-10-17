@@ -87,11 +87,15 @@ export function FoundryMascot({
               rotate: expressiveMood === 'thinking' ? [0, 1.5, -1.5, 0] : isSleepy ? [0, 2, 0] : 0,
             }
       }
-      transition={{
-        duration: isSleepy ? 4.5 : expressiveMood === 'invite' ? 1.8 : 2.8,
-        repeat: Infinity,
-        ease: 'easeInOut',
-      }}
+      transition={
+        reduced
+          ? { duration: 0 }
+          : {
+              duration: isSleepy ? 4.5 : expressiveMood === 'invite' ? 1.8 : 2.8,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }
+      }
       aria-hidden="true"
     >
       {wave && (
