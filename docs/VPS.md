@@ -70,6 +70,14 @@ A migration `0013_notifications.sql` registra alertas duráveis de novos leads, 
 
 Configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` para push. Gere um par próprio com `pnpm --filter @dcfoundry/api exec web-push generate-vapid-keys` no servidor e preserve a chave privada. O operador ativa notificações pelo sino e autoriza no navegador; a central funciona mesmo sem push. Requer HTTPS (localhost serve para desenvolvimento). Inscrições expiradas (404/410) são removidas, falhas têm até cinco tentativas e a carga contém somente avisos genéricos, sem nomes ou mensagens de clientes. Aceitação pelo provedor push não significa leitura. Sair da conta remove a inscrição deste navegador. Nenhuma porta nova é necessária.
 
+### Chat do site e SLA humano — item 9
+
+A migration `0014_website_chat_sla.sql` cria sessões e mensagens tipadas para visitantes. O site chama o CRM pelo backend; o navegador nunca recebe o segredo de integração. Configure no CRM `CRM_SITE_INGEST_TOKEN` (32 caracteres ou mais) e `CRM_SITE_OWNER_ID` com um usuário ativo. No Vercel do site, configure `CRM_CHAT_BACKEND_URL=https://SEU_CRM` e o mesmo `CRM_SITE_INGEST_TOKEN`. O adaptador mantém o mascote original e usa um cookie necessário HttpOnly, SameSite=Lax e Secure em produção, válido por 14 dias. Sem a URL, o provedor anterior do site continua em uso.
+
+Ative **Foundry IA → Agente & laboratório → Ativar respostas no site**. A base e as orientações são as mesmas do WhatsApp; conhecimento interno não vai para visitantes. Abrir o widget não cria lead: a primeira mensagem cria o contato anônimo. A conversa fica em **Chat do site**, com atualização periódica e resposta humana que pausa a Foundry. Limpar o histórico encerra o link da conversa. Há limites por visitante, conversa, hora e tamanho; o histórico público é limitado. Imagens no adaptador orientam o envio pelo WhatsApp.
+
+O painel mede ciclos de atendimento dos últimos 30 dias: primeira mensagem pendente até uma resposta humana efetivamente enviada. Respostas da Foundry, fila, falhas e mensagens históricas não encerram a espera. A meta vem do SLA da etapa do funil. A amostra tem limite de 10 mil mensagens e sinaliza quando o alcança. Uma mensagem recebida não é uma venda nem uma conversão comercial.
+
 ## O que inicia limpo
 
 O seed cria somente os sete papéis de acesso, um pipeline comercial e suas quatro etapas. Não insere clientes, produtos, contratos, faturas, campanhas ou artigos. O administrador é criado por um comando separado. Contas e senhas de demonstração existem apenas em fixtures dos testes; a API não as carrega. O frontend de produção não oferece o botão de prévia local.

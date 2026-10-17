@@ -22,6 +22,7 @@ import type { AuthenticatedSession } from '../../pages/LoginPage.js';
 import { useCrmApi } from './useModule.js';
 import { CsvExport } from './CsvExport.js';
 import { money, ModuleNotice, statusLabel } from './ModuleTools.js';
+import {SlaPanel} from './SlaPanel.js';
 
 const count = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 const shortDate = (d: string) =>
@@ -344,6 +345,7 @@ export function OperationsDashboard({
     )[exportView] ?? 'Exportar série';
   return (
     <div className="ops-dashboard">
+      <SlaPanel user={user}/>
       <section className="ops-heading">
         <div>
           <h2>

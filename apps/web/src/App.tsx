@@ -43,6 +43,7 @@ const BlogStudio = lazy(() =>
 const CompanySettings = lazy(() =>
   import('./components/modules/CompanySettings.js').then((m) => ({ default: m.CompanySettings })),
 );
+const WebsiteChatWorkspace=lazy(()=>import('./components/modules/WebsiteChatWorkspace.js').then(m=>({default:m.WebsiteChatWorkspace})));
 const ClientPortal = lazy(() =>
   import('./pages/ClientPortal.js').then((m) => ({ default: m.ClientPortal })),
 );
@@ -462,6 +463,7 @@ export function App() {
                 {page === 'blog' && <BlogStudio user={user} />}
                 {page === 'contracts' && <ServiceContracts user={user} leads={workspace.leads} />}
                 {page === 'settings' && <CompanySettings user={user} />}
+                {page === 'site_chat' && <WebsiteChatWorkspace user={user}/>}
                 {page === 'portal' && <ClientPortalWorkspace user={user} leads={workspace.leads} />}
                 {page === 'finance' && (
                   <RecordsModule kind="invoice" user={user} leads={workspace.leads} />

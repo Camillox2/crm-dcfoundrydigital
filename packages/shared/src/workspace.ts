@@ -40,6 +40,7 @@ export type WorkspacePage =
   | 'contracts'
   | 'finance'
   | 'whatsapp'
+  | 'site_chat'
   | 'ai_console'
   | 'marketing'
   | 'blog'

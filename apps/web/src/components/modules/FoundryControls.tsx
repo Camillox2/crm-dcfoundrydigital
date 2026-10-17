@@ -6,7 +6,11 @@ import type { AuthenticatedSession } from '../../pages/LoginPage.js';
 import { useCrmApi } from './useModule.js';
 export function FoundryLab({ user }: { user: AuthenticatedSession }) {
   const request = useCrmApi(user),
-    [settings, setSettings] = useState<{ whatsapp_enabled: boolean; version: number }>(),
+    [settings, setSettings] = useState<{
+      whatsapp_enabled: boolean;
+      website_enabled: boolean;
+      version: number;
+    }>(),
     [scenarios, setScenarios] = useState<{ slug: string; title: string; message: string }[]>([]),
     [result, setResult] = useState<{
       answer: string;
@@ -32,7 +36,7 @@ export function FoundryLab({ user }: { user: AuthenticatedSession }) {
   useEffect(() => {
     void load();
   }, [load]);
-  const toggle = async () => {
+  const toggle = async (channel: 'whatsapp' | 'website' = 'whatsapp') => {
     if (!settings) return;
     setBusy('settings');
     setError('');
@@ -40,7 +44,10 @@ export function FoundryLab({ user }: { user: AuthenticatedSession }) {
       await request('/api/v1/foundry/settings', {
         method: 'PUT',
         body: JSON.stringify({
-          whatsappEnabled: !settings.whatsapp_enabled,
+          whatsappEnabled:
+            channel === 'whatsapp' ? !settings.whatsapp_enabled : settings.whatsapp_enabled,
+          websiteEnabled:
+            channel === 'website' ? !settings.website_enabled : settings.website_enabled,
           version: settings.version,
         }),
       });
@@ -74,8 +81,8 @@ export function FoundryLab({ user }: { user: AuthenticatedSession }) {
         <div>
           <h3>Uma Foundry. A mesma base.</h3>
           <p>
-            O chat interno e o WhatsApp usam as orientações compartilhadas. Conhecimentos marcados
-            como internos ficam restritos à equipe.
+            O chat interno, o WhatsApp e o site usam as orientações compartilhadas. Conhecimentos
+            marcados como internos ficam restritos à equipe.
           </p>
           <strong>
             WhatsApp:{' '}
@@ -91,6 +98,19 @@ export function FoundryLab({ user }: { user: AuthenticatedSession }) {
         >
           {settings?.whatsapp_enabled ? <Pause size={16} /> : <Play size={16} />}{' '}
           {settings?.whatsapp_enabled ? 'Pausar agente' : 'Ativar no WhatsApp'}
+        </Button>
+      </Card>
+      <Card>
+        <h3>Foundry no site</h3>
+        <p>Atendimento conectado ao CRM, com a mesma base e passagem para a equipe.</p>
+        <Button
+          variant="outline"
+          disabled={
+            Boolean(busy) || !settings || !resolveGrantedScope(user.roles, 'ai_agent:update')
+          }
+          onClick={() => void toggle('website')}
+        >
+          {settings?.website_enabled ? 'Pausar respostas no site' : 'Ativar respostas no site'}
         </Button>
       </Card>
       <Card>

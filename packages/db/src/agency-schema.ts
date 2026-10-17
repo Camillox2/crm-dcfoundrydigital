@@ -12,6 +12,35 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { users, pipelines } from './schema.js';
+export const websiteChatSessions = pgTable('website_chat_sessions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  leadId: uuid('lead_id').notNull(),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
+  tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
+  visitorHash: varchar('visitor_hash', { length: 64 }).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  path: varchar('path', { length: 500 }).notNull().default('/'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  lastMessageAt: timestamp('last_message_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const websiteChatMessages = pgTable('website_chat_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sessionId: uuid('session_id')
+    .notNull()
+    .references(() => websiteChatSessions.id),
+  leadId: uuid('lead_id').notNull(),
+  role: varchar('role', { length: 16 }).notNull(),
+  actorId: uuid('actor_id').references(() => users.id),
+  body: text('body').notNull(),
+  requestKey: uuid('request_key'),
+  replyToId: uuid('reply_to_id').unique(),
+  turnState: varchar('turn_state', { length: 24 }).notNull().default('completed'),
+  model: varchar('model', { length: 180 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
 export const crmNotifications = pgTable('crm_notifications', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id')
@@ -327,6 +356,7 @@ export const foundryGuidanceVersions = pgTable('foundry_guidance_versions', {
   savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
 });
 export const foundrySettings = pgTable('foundry_settings', {
+  websiteEnabled: boolean('website_enabled').notNull().default(false),
   singleton: boolean('singleton').primaryKey().default(true),
   whatsappEnabled: boolean('whatsapp_enabled').notNull().default(false),
   version: integer('version').notNull().default(1),

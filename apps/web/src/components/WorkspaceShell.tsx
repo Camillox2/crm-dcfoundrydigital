@@ -47,6 +47,7 @@ export const navigation = [
     title: 'Atendimento',
     items: [
       { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
+      { id: 'site_chat', label: 'Chat do site', icon: Globe },
       { id: 'portal', label: 'Portal & solicitações', icon: Globe },
       { id: 'ai_console', label: 'Foundry IA', icon: Sparkles },
     ],
@@ -70,6 +71,7 @@ const pageReadPermission: Record<WorkspacePage, PermissionKey> = {
   contracts: 'contract:read',
   finance: 'finance:read',
   whatsapp: 'whatsapp:read',
+  site_chat:'whatsapp:read',
   portal: 'task:read',
   ai_console: 'ai_agent:read',
   marketing: 'marketing_ads:read',

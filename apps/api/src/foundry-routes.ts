@@ -37,7 +37,7 @@ export async function registerFoundryRoutes(
         await (
           await pool()
         ).query(
-          'SELECT whatsapp_enabled,version,updated_at FROM foundry_settings WHERE singleton=true',
+          'SELECT whatsapp_enabled,website_enabled,version,updated_at FROM foundry_settings WHERE singleton=true',
         )
       ).rows[0],
     }),
@@ -47,17 +47,25 @@ export async function registerFoundryRoutes(
     { preHandler: [requirePermission('ai_agent:update')] },
     async (req) => {
       const input = z
-          .object({ whatsappEnabled: z.boolean(), version: z.number().int().positive() })
+          .object({
+            whatsappEnabled: z.boolean(),
+            websiteEnabled: z.boolean().optional(),
+            version: z.number().int().positive(),
+          })
           .parse(req.body),
         db = await pool();
-      if (input.whatsappEnabled && !generate && !process.env.GEMINI_API_KEY)
+      if (
+        (input.whatsappEnabled || input.websiteEnabled) &&
+        !generate &&
+        !process.env.GEMINI_API_KEY
+      )
         throw new WorkspaceError(
           503,
           'Configure GEMINI_API_KEY no servidor antes de ativar a Foundry.',
         );
       const r = await db.query(
-        'UPDATE foundry_settings SET whatsapp_enabled=$1,version=version+1,updated_by=$2,updated_at=now() WHERE singleton=true AND version=$3 RETURNING *',
-        [input.whatsappEnabled, req.authUser!.id, input.version],
+        'UPDATE foundry_settings SET whatsapp_enabled=$1,website_enabled=COALESCE($4,website_enabled),version=version+1,updated_by=$2,updated_at=now() WHERE singleton=true AND version=$3 RETURNING *',
+        [input.whatsappEnabled, req.authUser!.id, input.version, input.websiteEnabled ?? null],
       );
       if (!r.rows.length)
         throw new WorkspaceError(409, 'As configurações mudaram. Atualize antes de salvar.');
@@ -65,7 +73,11 @@ export async function registerFoundryRoutes(
         `INSERT INTO audit_logs(actor_type,actor_id,action,entity_type,entity_id,diff_json) VALUES('user',$1,'foundry.settings','foundry','shared',$2)`,
         [
           req.authUser!.id,
-          JSON.stringify({ enabled: input.whatsappEnabled, version: r.rows[0].version }),
+          JSON.stringify({
+            enabled: input.whatsappEnabled,
+            websiteEnabled: r.rows[0].website_enabled,
+            version: r.rows[0].version,
+          }),
         ],
       );
       await whatsapp.setAgentEnabled(input.whatsappEnabled);
@@ -139,7 +151,7 @@ export async function registerFoundryRoutes(
         );
       const messages = (
         await db.query(
-          'SELECT direction,actor_type,body FROM wa_messages WHERE lead_id=$1 ORDER BY sent_at DESC LIMIT 20',
+          "SELECT direction,actor_type,body FROM (SELECT direction,actor_type,body,sent_at FROM wa_messages WHERE lead_id=$1 UNION ALL SELECT CASE WHEN role='contact' THEN 'inbound' ELSE 'outbound' END,role,body,created_at FROM website_chat_messages WHERE lead_id=$1) m ORDER BY sent_at DESC LIMIT 20",
           [lead.id],
         )
       ).rows.reverse();
