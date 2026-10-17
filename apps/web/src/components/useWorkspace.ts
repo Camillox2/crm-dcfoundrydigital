@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   resolveGrantedScope,
+  DEFAULT_PIPELINE_STAGES,
+  type PipelineStage,
   type WorkspaceLead,
   type WorkspaceLeadInput,
 } from '@dcfoundry/shared';
@@ -8,13 +10,23 @@ import type { AuthenticatedSession } from '../pages/LoginPage.js';
 
 export function useWorkspace(user: AuthenticatedSession | null) {
   const [leads, setLeads] = useState<WorkspaceLead[]>([]);
+  const identity = user
+    ? `${user.userId}:${user.teamId ?? ''}:${[...user.roles].sort().join(',')}`
+    : null;
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [stages, setStages] = useState<PipelineStage[]>(DEFAULT_PIPELINE_STAGES),
+    [pipelineVersion, setPipelineVersion] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     const reload = () => setRefresh((n) => n + 1);
     window.addEventListener('crm:leads-changed', reload);
-    return () => window.removeEventListener('crm:leads-changed', reload);
+    window.addEventListener('crm:pipeline-changed', reload);
+    return () => {
+      window.removeEventListener('crm:leads-changed', reload);
+      window.removeEventListener('crm:pipeline-changed', reload);
+    };
   }, []);
   const request = useCallback(
     async (url: string, init?: RequestInit) => {
@@ -45,7 +57,10 @@ export function useWorkspace(user: AuthenticatedSession | null) {
     setLoading(true);
     request('/api/v1/workspace/leads', { signal: controller.signal })
       .then((data) => {
-        if (!controller.signal.aborted) setLeads(data.items);
+        if (!controller.signal.aborted) {
+          setLeads(data.items);
+          setLoadedFor(identity);
+        }
       })
       .catch((cause) => {
         if (!controller.signal.aborted)
@@ -56,22 +71,39 @@ export function useWorkspace(user: AuthenticatedSession | null) {
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
+    if (resolveGrantedScope(user.roles, 'pipeline:read'))
+      void request('/api/v1/pipeline', { signal: controller.signal })
+        .then((data) => {
+          if (!controller.signal.aborted) {
+            setStages(data.stages);
+            setPipelineVersion(data.version);
+          }
+        })
+        .catch(() => undefined);
     return () => controller.abort();
-  }, [request, user, refresh]);
+  }, [request, user, refresh, identity]);
   const create = async (input: WorkspaceLeadInput) => {
     const data = await request('/api/v1/workspace/leads', {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    setLeads((current) => [data.item, ...current]);
+    setLeads((current) => [data.item, ...(loadedFor === identity ? current : [])]);
+    setLoadedFor(identity);
     return data.item as WorkspaceLead;
   };
   const advance = async (lead: WorkspaceLead) => {
-    const stages = ['novo', 'qualificado_ia', 'orcamento', 'contrato_ativo'] as const;
-    const next = stages[Math.min(stages.indexOf(lead.stage) + 1, stages.length - 1)];
+    const position = stages.findIndex((s) => s.id === lead.stage),
+      next = stages[Math.min(position + 1, stages.length - 1)]?.id ?? 'novo';
     const data = await request(`/api/v1/workspace/leads/${encodeURIComponent(lead.id)}/stage`, {
       method: 'PATCH',
       body: JSON.stringify({ stage: next }),
+    });
+    setLeads((current) => current.map((item) => (item.id === lead.id ? data.item : item)));
+  };
+  const move = async (lead: WorkspaceLead, stage: string) => {
+    const data = await request(`/api/v1/workspace/leads/${lead.id}/stage`, {
+      method: 'PATCH',
+      body: JSON.stringify({ stage }),
     });
     setLeads((current) => current.map((item) => (item.id === lead.id ? data.item : item)));
   };
@@ -101,6 +133,20 @@ export function useWorkspace(user: AuthenticatedSession | null) {
     });
     const data = await request('/api/v1/workspace/leads');
     setLeads(data.items);
+    setLoadedFor(identity);
   };
-  return { leads, loading, error, create, advance, update, archive, archived, restore };
+  return {
+    leads: loadedFor === identity ? leads : [],
+    loading,
+    error,
+    create,
+    advance,
+    move,
+    update,
+    archive,
+    archived,
+    restore,
+    stages,
+    pipelineVersion,
+  };
 }

@@ -124,7 +124,7 @@ export async function registerReportingRoutes(
         if (!access.lead) return [];
         const { args } = reportScope(user, 'lead:read');
         const result = await db.pool.query(
-          `SELECT l.id,l.name,l.company,l.stage,l.monthly_value AS "monthlyValue",l.campaign,l.gclid,l.high_priority AS "highPriority",l.created_at AS "createdAt",l.updated_at AS "updatedAt" FROM workspace_leads l WHERE ${scope('l')} AND l.archived_at IS NULL ORDER BY l.created_at DESC,l.id LIMIT ${CAP + 1}`,
+          `SELECT l.id,l.name,l.company,l.stage,p.name AS "stageName",p.is_won AS "stageIsWon",p.is_lost AS "stageIsLost",l.monthly_value AS "monthlyValue",l.campaign,l.gclid,l.high_priority AS "highPriority",l.created_at AS "createdAt",l.updated_at AS "updatedAt" FROM workspace_leads l JOIN pipeline_stages p ON p.pipeline_id=l.pipeline_id AND p.slug=l.stage WHERE ${scope('l')} AND l.archived_at IS NULL ORDER BY l.created_at DESC,l.id LIMIT ${CAP + 1}`,
           args,
         );
         if (result.rows.length > CAP) truncated = true;
@@ -161,8 +161,8 @@ export async function registerReportingRoutes(
       truncated,
       siteConfigured: Boolean(
         process.env.CRM_SITE_INGEST_TOKEN &&
-          process.env.CRM_SITE_INGEST_TOKEN.length >= 32 &&
-          z.string().uuid().safeParse(process.env.CRM_SITE_OWNER_ID).success,
+        process.env.CRM_SITE_INGEST_TOKEN.length >= 32 &&
+        z.string().uuid().safeParse(process.env.CRM_SITE_OWNER_ID).success,
       ),
     });
   });

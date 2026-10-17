@@ -38,6 +38,12 @@ Na conversa, **Assumir atendimento** pausa a Foundry e invalida respostas penden
 
 O agente extrai tipo de projeto, objetivo, orçamento informado, prazo, decisão e urgência somente quando há trecho de evidência no contato. Pedido de pessoa humana, resposta sem formato válido, preço sem base ou falha do provedor encaminham a conversa e pausam a automação. Mensagens históricas nunca acionam respostas automáticas. Reuniões só serão confirmadas após persistência na agenda do item 7.
 
+### Funil e ficha do lead — item 4
+
+A migration `0009_pipeline_lead_files.sql` amplia o funil preservando as etapas já usadas nos contatos. O padrão tem Novo, Qualificado, Reunião, Proposta, Negociação, Ganho e Perdido. Perfis com `pipeline:manage` podem ajustar a configuração no próprio funil. Há controle de versão para impedir sobreposição entre duas telas; uma etapa usada por contato ativo ou arquivado não pode ser removida. Os relatórios consideram os marcadores configurados de ganho e perda.
+
+No computador, arraste o card; no celular, abra a ficha e escolha a etapa. A ficha também aceita até 15 tags e anexos de até 16 MB. Arquivar não exclui documentos nem tags. Restaurar preserva os vínculos. O arquivamento pausa a Foundry; retome-a explicitamente quando necessário. Os anexos ficam no mesmo `crm_uploads`, com hash SHA-256 e leitura autenticada por lead. Não há variável nova neste item.
+
 Requisitos: Node.js 22 atualizado, Corepack/pnpm 10.6, Docker com Compose e um domínio apontado para o servidor. Esta revisão não executa deploy no VPS.
 
 ## O que inicia limpo

@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { isWonLead, isLostLead } from './pipeline.js';
 
-export const LeadStageSchema = z.enum(['novo', 'qualificado_ia', 'orcamento', 'contrato_ativo']);
+export const LeadStageSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/);
 export const CreateWorkspaceLeadSchema = z.object({
   name: z.string().trim().min(2).max(180),
   company: z.string().trim().min(2).max(180),
@@ -21,6 +22,10 @@ export type WorkspaceLeadInput = z.infer<typeof CreateWorkspaceLeadSchema>;
 export interface WorkspaceLead extends WorkspaceLeadInput {
   id: string;
   stage: z.infer<typeof LeadStageSchema>;
+  stageName?: string;
+  stageIsWon?: boolean;
+  stageIsLost?: boolean;
+  tags?: { id: string; name: string; color: string }[];
   score: number;
   temperature: 'Quente' | 'Morno' | 'Frio';
   campaign: string;
@@ -56,7 +61,7 @@ export interface DailyInsight {
 export function getDailyInsights(leads: readonly WorkspaceLead[]): DailyInsight[] {
   const insights: DailyInsight[] = [];
   const priority = leads
-    .filter((lead) => lead.highPriority && lead.stage !== 'contrato_ativo')
+    .filter((lead) => lead.highPriority && !isWonLead(lead) && !isLostLead(lead))
     .sort((a, b) => b.monthlyValue - a.monthlyValue)[0];
   if (priority)
     insights.push({

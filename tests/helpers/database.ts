@@ -5,11 +5,13 @@ import { vector } from '@electric-sql/pglite-pgvector';
 import { readdir, readFile } from 'node:fs/promises';
 import type { DatabaseConnectionResult } from '@dcfoundry/db';
 // PostgreSQL engine in a disposable WASM database. Never reads DATABASE_URL.
-export async function testDatabase() {
+export async function testDatabase(beforeMigration?: (name: string, db: PGlite) => Promise<void>) {
   const db = await PGlite.create({ extensions: { pgcrypto, btree_gist, vector } });
   const migrations = new URL('../../packages/db/migrations/', import.meta.url);
-  for (const name of (await readdir(migrations)).filter((n) => n.endsWith('.sql')).sort())
+  for (const name of (await readdir(migrations)).filter((n) => n.endsWith('.sql')).sort()) {
+    await beforeMigration?.(name, db);
     await db.exec(await readFile(new URL(name, migrations), 'utf8'));
+  }
   let tail = Promise.resolve();
   const lock = async () => {
     let release!: () => void;

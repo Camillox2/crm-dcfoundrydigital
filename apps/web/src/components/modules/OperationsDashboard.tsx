@@ -477,7 +477,7 @@ export function OperationsDashboard({
                 title="Onde os negócios estão"
                 description="Distribuição atual por etapa; não representa uma taxa histórica de conversão."
                 rows={r.funnel.map((row) => ({
-                  label: stageLabels[row.stage] ?? row.stage,
+                  label: row.stageName??stageLabels[row.stage]??row.stage,
                   value: row.count,
                 }))}
                 onClick={() => onNavigate('kanban')}

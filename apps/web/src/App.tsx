@@ -31,6 +31,9 @@ import './modules.css';
 import './operations.css';
 import './agency.css';
 import { downloadCsv } from './components/modules/useModule.js';
+import { LeadExtras } from './components/modules/LeadExtras.js';
+import { LeadFoundry } from './components/modules/FoundryControls.js';
+import { PipelineSettings } from './components/modules/PipelineSettings.js';
 const BlogStudio = lazy(() =>
   import('./components/modules/BlogStudio.js').then((m) => ({
     default: m.BlogStudio,
@@ -77,13 +80,6 @@ const AgendaWorkspace = lazy(() =>
   })),
 );
 
-const stages = [
-  { id: 'novo', name: 'Novas oportunidades' },
-  { id: 'qualificado_ia', name: 'Qualificados' },
-  { id: 'orcamento', name: 'Em proposta' },
-  { id: 'contrato_ativo', name: 'Contrato ativo' },
-] as const;
-
 export function App() {
   const [user, setUser] = useState<AuthenticatedSession | null>(null);
   const [page, setPage] = useState<WorkspacePage>('dashboard');
@@ -102,6 +98,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const workspace = useWorkspace(user);
+  const stages = workspace.stages;
   const selectedLead = workspace.leads.find((lead) => lead.id === selectedId);
   const editingLead = workspace.leads.find((lead) => lead.id === editingId);
   const filteredLeads = (showArchived ? archivedLeads : workspace.leads).filter((lead) =>
@@ -309,19 +306,51 @@ export function App() {
                         {actionError}
                       </p>
                     )}
+                    <PipelineSettings
+                      user={user}
+                      stages={stages}
+                      version={workspace.pipelineVersion}
+                    />
                     <div className="kanban-board">
                       {stages.map((stage) => (
-                        <section className="kanban-column" key={stage.id}>
-                          <header>
+                        <section
+                          className="kanban-column"
+                          key={stage.id}
+                          onDragOver={(event) => {
+                            if (resolveGrantedScope(user.roles, 'lead:update'))
+                              event.preventDefault();
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            const lead = workspace.leads.find(
+                              (l) => l.id === event.dataTransfer.getData('text/plain'),
+                            );
+                            if (lead)
+                              void workspace
+                                .move(lead, stage.id)
+                                .catch((e) => setActionError(e.message));
+                          }}
+                        >
+                          <header style={{ borderBottomColor: stage.color }}>
                             <strong>{stage.name}</strong>
-                            <Badge tone={stage.id === 'contrato_ativo' ? 'teal' : 'sky'}>
+                            <Badge tone={stage.isWon ? 'teal' : stage.isLost ? 'warm' : 'sky'}>
                               {filteredLeads.filter((lead) => lead.stage === stage.id).length}
                             </Badge>
                           </header>
                           {filteredLeads
                             .filter((lead) => lead.stage === stage.id)
                             .map((lead, index) => (
-                              <Card key={lead.id} className="lead-card">
+                              <Card
+                                key={lead.id}
+                                className="lead-card"
+                                draggable={
+                                  !showArchived &&
+                                  Boolean(resolveGrantedScope(user.roles, 'lead:update'))
+                                }
+                                onDragStart={(event) =>
+                                  event.dataTransfer.setData('text/plain', lead.id)
+                                }
+                              >
                                 <div className="lead-card-person">
                                   <ContactAvatar
                                     name={lead.name}
@@ -335,6 +364,13 @@ export function App() {
                                 </div>
                                 {lead.highPriority && <Badge tone="warm">Prioridade</Badge>}
                                 {lead.scopeSummary && <p>{lead.scopeSummary}</p>}
+                                <div className="lead-tag-list">
+                                  {lead.tags?.map((tag) => (
+                                    <span key={tag.id} style={{ borderColor: tag.color }}>
+                                      {tag.name}
+                                    </span>
+                                  ))}
+                                </div>
                                 <div className="lead-card-footer">
                                   <strong>
                                     {lead.monthlyValue.toLocaleString('pt-BR', {
@@ -366,7 +402,7 @@ export function App() {
                                           <Eye size={14} />
                                           Ficha
                                         </Button>
-                                        {stage.id !== 'contrato_ativo' && (
+                                        {!stage.isWon && !stage.isLost && (
                                           <Button
                                             size="sm"
                                             variant="outline"
@@ -560,6 +596,26 @@ export function App() {
                       <dd>{selectedLead.notes || 'Sem notas por enquanto.'}</dd>
                     </div>
                   </dl>
+                  <label>
+                    Etapa do funil
+                    <select
+                      value={selectedLead.stage}
+                      disabled={!resolveGrantedScope(user.roles, 'lead:update')}
+                      onChange={(event) =>
+                        void workspace
+                          .move(selectedLead, event.target.value)
+                          .catch((e) => setActionError(e.message))
+                      }
+                    >
+                      {stages.map((stage) => (
+                        <option key={stage.id} value={stage.id}>
+                          {stage.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <LeadFoundry user={user} leadId={selectedLead.id} />
+                  <LeadExtras user={user} leadId={selectedLead.id} />
                   <p className="profile-photo-note">
                     A foto aparece quando estiver disponível pela sua sessão Baileys.
                   </p>

@@ -267,6 +267,7 @@ export const offlineConversionUploads = pgTable(
 
 export const pipelines = pgTable('pipelines', {
   id: uuid('id').defaultRandom().primaryKey(),
+  version:integer('version').notNull().default(1),
   name: varchar('name', { length: 120 }).notNull(), // 'Locação Home Care', 'Venda de Equipamentos', 'Pós-venda / Renovação'
   slug: varchar('slug', { length: 80 }).notNull(),
   isDefault: boolean('is_default').default(false).notNull(),
@@ -281,6 +282,7 @@ export const pipelineStages = pgTable(
       .notNull()
       .references(() => pipelines.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 120 }).notNull(),
+    slug:varchar('slug',{length:32}).notNull(),
     position: integer('position').notNull(),
     slaMinutes: integer('sla_minutes').default(30).notNull(),
     colorHex: varchar('color_hex', { length: 16 }).default('#1D5FAE').notNull(),

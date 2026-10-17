@@ -10,7 +10,7 @@ import {
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { users } from './schema.js';
+import { users, pipelines } from './schema.js';
 export const workspaceLeads = pgTable('workspace_leads', {
   id: uuid('id').defaultRandom().primaryKey(),
   ownerId: uuid('owner_id')
@@ -19,6 +19,9 @@ export const workspaceLeads = pgTable('workspace_leads', {
   name: varchar('name', { length: 180 }).notNull(),
   company: varchar('company', { length: 180 }).notNull(),
   phone: varchar('phone', { length: 24 }).notNull(),
+  pipelineId: uuid('pipeline_id')
+    .notNull()
+    .references(() => pipelines.id),
   projectType: varchar('project_type', { length: 32 }),
   objective: text('objective'),
   budgetCents: bigint('budget_cents', { mode: 'number' }),
@@ -222,4 +225,49 @@ export const foundryLabRuns = pgTable('foundry_lab_runs', {
   handoff: boolean('handoff').notNull(),
   passed: boolean('passed').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const leadTags = pgTable('lead_tags', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 40 }).notNull().unique(),
+  color: varchar('color', { length: 7 }).notNull().default('#246ba5'),
+});
+export const leadTagLinks = pgTable('lead_tag_links', {
+  leadId: uuid('lead_id')
+    .notNull()
+    .references(() => workspaceLeads.id),
+  tagId: uuid('tag_id')
+    .notNull()
+    .references(() => leadTags.id),
+});
+export const leadAttachments = pgTable('lead_attachments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  leadId: uuid('lead_id')
+    .notNull()
+    .references(() => workspaceLeads.id),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
+  fileName: varchar('file_name', { length: 180 }).notNull(),
+  mimeType: varchar('mime_type', { length: 150 }).notNull(),
+  storageKey: varchar('storage_key', { length: 200 }).notNull().unique(),
+  bytes: integer('bytes').notNull(),
+  sha256: varchar('sha256', { length: 64 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const pipelineStageRevisions = pgTable('pipeline_stage_revisions', {
+  pipelineId: uuid('pipeline_id')
+    .notNull()
+    .references(() => pipelines.id),
+  version: integer('version').notNull(),
+  slug: varchar('slug', { length: 32 }).notNull(),
+  name: varchar('name', { length: 120 }).notNull(),
+  position: integer('position').notNull(),
+  slaMinutes: integer('sla_minutes').notNull(),
+  colorHex: varchar('color_hex', { length: 16 }).notNull(),
+  isWon: boolean('is_won').notNull(),
+  isLost: boolean('is_lost').notNull(),
+  actorId: uuid('actor_id')
+    .notNull()
+    .references(() => users.id),
+  savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
 });

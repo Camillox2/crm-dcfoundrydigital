@@ -1,4 +1,5 @@
 import type { WorkspacePage } from './workspace.js';
+import { DEFAULT_PIPELINE_STAGES, isWonLead, isLostLead } from './pipeline.js';
 
 export type ReportDocument = {
   id: string;
@@ -14,6 +15,9 @@ export type ReportLead = {
   name: string;
   company: string;
   stage: string;
+  stageName?: string;
+  stageIsWon?: boolean;
+  stageIsLost?: boolean;
   monthlyValue: number;
   campaign: string;
   gclid?: string;
@@ -148,10 +152,10 @@ export function buildOperationsReport(input: {
     previousLeads: previousLeads.length,
     pipelineCents: Math.round(
       input.leads
-        .filter((l) => ['qualificado_ia', 'orcamento'].includes(l.stage))
+        .filter((l) => l.stage !== 'novo' && !isWonLead(l) && !isLostLead(l))
         .reduce((v, l) => v + l.monthlyValue * 100, 0),
     ),
-    activeClients: input.leads.filter((l) => l.stage === 'contrato_ativo').length,
+    activeClients: input.leads.filter(isWonLead).length,
     receivedCents: sum(paid, 'amountCents'),
     previousReceivedCents: sum(previousPaid, 'amountCents'),
     openCents: sum(open, 'amountCents'),
@@ -205,8 +209,14 @@ export function buildOperationsReport(input: {
         .length,
     };
   });
-  const funnel = ['novo', 'qualificado_ia', 'orcamento', 'contrato_ativo'].map((stage) => ({
+  const funnel = [
+    ...new Set([...DEFAULT_PIPELINE_STAGES.map((s) => s.id), ...input.leads.map((l) => l.stage)]),
+  ].map((stage) => ({
     stage,
+    stageName:
+      input.leads.find((l) => l.stage === stage)?.stageName ??
+      DEFAULT_PIPELINE_STAGES.find((s) => s.id === stage)?.name ??
+      stage,
     count: input.leads.filter((l) => l.stage === stage).length,
   }));
   const origins = [
@@ -300,7 +310,7 @@ export function buildOperationsReport(input: {
         urgent: true,
       })),
     ...input.leads
-      .filter((l) => l.stage !== 'contrato_ativo' && dateOf(l.updatedAt) < shift(today, -7))
+      .filter((l) => !isWonLead(l) && !isLostLead(l) && dateOf(l.updatedAt) < shift(today, -7))
       .map((l) => ({
         id: l.id,
         title: l.company,

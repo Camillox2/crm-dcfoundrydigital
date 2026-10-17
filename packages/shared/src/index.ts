@@ -7,3 +7,4 @@ export * from './workspace.js';
 export * from './modules.js';
 export * from './reporting.js';
 export * from './whatsapp.js';
+export * from './pipeline.js';

@@ -21,7 +21,7 @@ export interface WorkspaceStore {
     actor: WorkspaceActor,
   ): Promise<WorkspaceLead | null>;
 }
-const columns = `id, name, company, phone, scope_summary AS "scopeSummary", modality, monthly_value AS "monthlyValue", notes, high_priority AS "highPriority", stage, campaign, gclid, avatar_url AS "avatarUrl", created_at AS "createdAt", updated_at AS "updatedAt"`;
+const columns = `id, name, company, phone, scope_summary AS "scopeSummary", modality, monthly_value AS "monthlyValue", notes, high_priority AS "highPriority", stage, campaign, gclid, avatar_url AS "avatarUrl", created_at AS "createdAt", updated_at AS "updatedAt",(SELECT name FROM pipeline_stages p WHERE p.pipeline_id=workspace_leads.pipeline_id AND p.slug=workspace_leads.stage) AS "stageName",(SELECT is_won FROM pipeline_stages p WHERE p.pipeline_id=workspace_leads.pipeline_id AND p.slug=workspace_leads.stage) AS "stageIsWon",(SELECT is_lost FROM pipeline_stages p WHERE p.pipeline_id=workspace_leads.pipeline_id AND p.slug=workspace_leads.stage) AS "stageIsLost",COALESCE((SELECT json_agg(json_build_object('id',t.id,'name',t.name,'color',t.color)) FROM lead_tags t JOIN lead_tag_links tag ON tag.tag_id=t.id WHERE tag.lead_id=workspace_leads.id),'[]') AS tags`;
 const access = `($1::boolean OR owner_id=$2::uuid OR ($3::boolean AND owner_id IN (SELECT id FROM users WHERE team_id=$4::uuid)))`;
 const actorValues = (actor: WorkspaceActor) => [
   actor.scope === 'all',
@@ -94,7 +94,7 @@ export class PostgresWorkspaceStore implements WorkspaceStore {
     const result = await this.change(
       actor.id,
       'lead.stage_update',
-      `UPDATE workspace_leads SET stage=$6, updated_at=now() WHERE ${access} AND id=$5 AND archived_at IS NULL RETURNING ${columns}`,
+      `UPDATE workspace_leads SET stage=$6, updated_at=now() WHERE ${access} AND id=$5 AND archived_at IS NULL AND EXISTS(SELECT 1 FROM pipeline_stages p WHERE p.pipeline_id=workspace_leads.pipeline_id AND p.slug=$6) RETURNING ${columns}`,
       [...actorValues(actor), id, stage],
     );
     return result.rows[0] ? toLead(result.rows[0]) : null;
@@ -125,7 +125,7 @@ export class PostgresWorkspaceStore implements WorkspaceStore {
     const r = await this.change(
       actor.id,
       archived ? 'lead.archive' : 'lead.restore',
-      `UPDATE workspace_leads SET archived_at=CASE WHEN $6 THEN now() ELSE NULL END,updated_at=now() WHERE ${access} AND id=$5 AND (archived_at IS NOT NULL)<>$6 RETURNING id`,
+      `UPDATE workspace_leads SET archived_at=CASE WHEN $6 THEN now() ELSE NULL END,ai_paused=CASE WHEN $6 THEN true ELSE ai_paused END,ai_control_revision=ai_control_revision+1,updated_at=now() WHERE ${access} AND id=$5 AND (archived_at IS NOT NULL)<>$6 RETURNING id`,
       [...actorValues(actor), id, archived],
     );
     return r.rows.length > 0;

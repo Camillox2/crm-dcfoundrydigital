@@ -28,6 +28,7 @@ import { registerWhatsAppRoutes } from './whatsapp-routes.js';
 import type { WhatsAppTransport } from './whatsapp-runtime.js';
 import { registerFoundryRoutes } from './foundry-routes.js';
 import type { FoundryGenerate } from './foundry-engine.js';
+import { registerPipelineRoutes } from './pipeline-routes.js';
 
 export interface DemoUserRecord {
   id: string;
@@ -113,6 +114,7 @@ export async function buildApiServer(
   await registerReportingRoutes(app, database);
   const whatsapp = await registerWhatsAppRoutes(app, database, options.whatsappTransport);
   await registerFoundryRoutes(app, database, whatsapp, options.foundryGenerate);
+  await registerPipelineRoutes(app, database);
   app.addHook('onClose', async () => {
     if (connection) await (await connection).pool.end();
   });
@@ -381,6 +383,7 @@ export async function buildApiServer(
         },
         archived,
       );
+      if (ok) await whatsapp.syncControl(id).catch(() => undefined);
       return ok ? { archived } : reply.status(404).send({ message: 'Contato não encontrado.' });
     },
   );
