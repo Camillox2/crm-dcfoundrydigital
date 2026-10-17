@@ -22,9 +22,11 @@ import { FoundryLab } from './FoundryControls.js';
 export function WhatsAppWorkspace({
   user,
   leads,
+  embedded = false,
 }: {
   user: AuthenticatedSession;
   leads: WorkspaceLead[];
+  embedded?: boolean;
 }) {
   const templates = useModule('template', user),
     [tab, setTab] = useState('compose'),
@@ -42,21 +44,23 @@ export function WhatsAppWorkspace({
     );
   return (
     <div className="module-workspace">
-      <WhatsAppConnection user={user} />
-      <div className="module-tabs">
-        <button
-          aria-pressed={tab === 'compose'}
-          onClick={() => {
-            templates.reload();
-            setTab('compose');
-          }}
-        >
-          Preparar conversa
-        </button>
-        <button aria-pressed={tab === 'templates'} onClick={() => setTab('templates')}>
-          Respostas prontas
-        </button>
-      </div>
+      {!embedded && <WhatsAppConnection user={user} />}
+      {!embedded && (
+        <div className="module-tabs">
+          <button
+            aria-pressed={tab === 'compose'}
+            onClick={() => {
+              templates.reload();
+              setTab('compose');
+            }}
+          >
+            Preparar conversa
+          </button>
+          <button aria-pressed={tab === 'templates'} onClick={() => setTab('templates')}>
+            Respostas prontas
+          </button>
+        </div>
+      )}
       {tab === 'templates' ? (
         <RecordsModule kind="template" user={user} />
       ) : (

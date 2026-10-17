@@ -23,6 +23,9 @@ it('keeps every Compose service bounded and preserves the existing public/loopba
   expect(compose.services.postgres.ports).toEqual(['127.0.0.1:5432:5432']);
   expect(compose.services.redis.ports).toEqual(['127.0.0.1:6379:6379']);
   expect(compose.services.caddy.ports).toEqual(['80:80', '443:443']);
-  expect(compose.services.worker.volumes).toContain('whatsapp_sessions:/data/whatsapp');
-  expect(compose.services.api.volumes).not.toContain('whatsapp_sessions:/data/whatsapp');
+  expect(compose.services.worker.volumes).toContain('whatsapp_sessions:/data/whatsapp-auth');
+  expect(compose.services.api.volumes).not.toContain('whatsapp_sessions:/data/whatsapp-auth');
+  expect(compose.services.worker.restart).toBe('unless-stopped');
+  expect(compose.services.worker.environment.WHATSAPP_SESSION_DIR).toBe('/data/whatsapp-auth');
+  expect(Object.keys(compose.services.worker.depends_on).sort()).toEqual(['postgres', 'redis']);
 });

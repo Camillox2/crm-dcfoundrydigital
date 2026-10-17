@@ -77,7 +77,7 @@ export function directIdentity(jid: string, alternate?: string | null) {
   const normalized = clean(jid);
   if (!/^\d+@(s\.whatsapp\.net|lid)$/.test(normalized)) return null;
   const phoneJid = [alternate ? clean(alternate) : '', normalized].find((value) =>
-    /^\d{8,15}@s\.whatsapp\.net$/.test(value),
+    /^[1-9]\d{7,14}@s\.whatsapp\.net$/.test(value),
   );
   return { jid: normalized, phone: phoneJid ? '+' + phoneJid.split('@')[0] : null };
 }

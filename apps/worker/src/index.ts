@@ -1,4 +1,4 @@
-import { Queue, Worker } from 'bullmq';
+import { DelayedError, Queue, Worker } from 'bullmq';
 import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import makeWASocket, {
@@ -11,8 +11,25 @@ import pino from 'pino';
 import { createSessionManager } from './whatsapp-session.js';
 import type { WhatsAppCommand, WhatsAppEvent } from '@dcfoundry/shared';
 import { mapMediaMessage, createLivePhotos, executeLiveCommand } from './live-media.js';
+import { acquireWorkerLease } from './worker-lease.js';
+import { createSendLimit } from './send-limit.js';
 if (!process.env.REDIS_URL) throw new Error('REDIS_URL is required for the WhatsApp worker.');
 process.umask(0o077);
+const ownership = new Redis(process.env.REDIS_URL, {
+  lazyConnect: true,
+  connectTimeout: 5000,
+  commandTimeout: 4000,
+  maxRetriesPerRequest: 1,
+  enableOfflineQueue: false,
+});
+ownership.on('error', () => undefined);
+await ownership.connect();
+let shutdown: (() => Promise<void>) | undefined;
+const lease = await acquireWorkerLease(ownership, () => {
+  process.exitCode = 1;
+  void shutdown?.();
+  setTimeout(() => process.exit(1), 10000).unref();
+});
 const producer = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
 const consumer = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
 producer.on('error', () => undefined);
@@ -31,7 +48,8 @@ const emit = async (event: WhatsAppEvent) => {
 const photos = createLivePhotos(),
   uploads = process.env.CRM_UPLOAD_DIR || '/data/uploads';
 const manager = createSessionManager({
-  directory: process.env.WHATSAPP_SESSION_DIR || '/data/whatsapp',
+  directory: process.env.WHATSAPP_SESSION_DIR || '/data/whatsapp-auth',
+  assertOwner: lease.assertOwner,
   emit,
   onMessage: (raw, historical, command) =>
     mapMediaMessage(
@@ -70,7 +88,9 @@ const manager = createSessionManager({
     await executeLiveCommand(command, socket, emit, uploads, photos);
   },
   factory: async (directory) => {
+    lease.assertOwner();
     const { state, saveCreds } = await useMultiFileAuthState(directory);
+    lease.assertOwner();
     const socket = makeWASocket({
       auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
       logger,
@@ -83,10 +103,26 @@ const manager = createSessionManager({
     return { socket, saveCreds, registered: state.creds.registered };
   },
 });
-const commands = new Worker<WhatsAppCommand>('dc-wa-commands', (job) => manager.command(job.data), {
-  connection: consumer,
-  concurrency: 1,
-});
+const sendLimit = createSendLimit(ownership);
+const commands = new Worker<WhatsAppCommand>(
+  'dc-wa-commands',
+  async (job, token) => {
+    lease.assertOwner();
+    if (job.data.type === 'send') {
+      const delay = await sendLimit.reserve();
+      if (delay) {
+        await job.moveToDelayed(Date.now() + delay, token);
+        throw new DelayedError();
+      }
+    }
+    await manager.command(job.data);
+  },
+  {
+    connection: consumer,
+    concurrency: 1,
+    autorun: false,
+  },
+);
 commands.on('error', () => console.error('WhatsApp command queue unavailable; reconnecting.'));
 commands.on('failed', (job) => {
   if (
@@ -104,18 +140,33 @@ commands.on('failed', (job) => {
       delivery: 'failed',
     }).catch(() => undefined);
 });
-await manager.restore();
-const stop = async () => {
-  manager.close();
-  await commands.close();
-  await events.close();
-  await producer.quit();
-  await consumer.quit();
-};
+let stopping = false;
+const stop = (shutdown = async () => {
+  if (stopping) return;
+  stopping = true;
+  const deadline = setTimeout(() => process.exit(process.exitCode ? 1 : 0), 10000);
+  deadline.unref();
+  try {
+    await manager.close();
+    await commands.close(true);
+    await events.close();
+    await lease.close().catch(() => undefined);
+    ownership.disconnect();
+    producer.disconnect();
+    consumer.disconnect();
+  } finally {
+    clearTimeout(deadline);
+  }
+});
 process.once('SIGTERM', () => {
   void stop();
 });
 process.once('SIGINT', () => {
+  void stop();
+});
+await manager.restore();
+void commands.run().catch(() => {
+  process.exitCode = 1;
   void stop();
 });
 console.log(

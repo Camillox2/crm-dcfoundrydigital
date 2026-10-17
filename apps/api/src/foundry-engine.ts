@@ -75,7 +75,7 @@ export class FoundryEngine {
       if (raw.fromMe || raw.historical) continue;
       const row = (
         await this.pool.query(
-          `SELECT m.id AS message_id,l.* FROM wa_messages m JOIN workspace_leads l ON l.id=m.lead_id JOIN wa_sessions s ON s.id=m.session_id WHERE m.session_id=$1 AND m.jid=$2 AND m.external_id=$3 AND m.direction='inbound' AND m.historical=false AND s.generation=$4 AND s.provider='baileys' AND s.status='connected' AND s.enabled=true AND l.archived_at IS NULL AND l.ai_paused=false`,
+          `SELECT m.id AS message_id,l.* FROM wa_messages m JOIN workspace_leads l ON l.id=m.lead_id JOIN wa_sessions s ON s.id=m.session_id JOIN wa_conversations c ON c.session_id=m.session_id AND c.lead_id=m.lead_id WHERE m.session_id=$1 AND m.jid=$2 AND m.external_id=$3 AND m.direction='inbound' AND m.historical=false AND s.generation=$4 AND s.provider='baileys' AND s.status='connected' AND s.enabled=true AND l.archived_at IS NULL AND l.ai_paused=false AND c.ai_enabled=true`,
           [event.sessionId, raw.jid, raw.externalId, event.generation],
         )
       ).rows[0];
@@ -123,13 +123,14 @@ export class FoundryEngine {
         await client.query('BEGIN');
         const current = (
           await client.query(
-            'SELECT ai_paused,ai_control_revision,archived_at FROM workspace_leads WHERE id=$1 FOR UPDATE',
-            [row.id],
+            'SELECT l.ai_paused,l.ai_control_revision,l.archived_at,c.ai_enabled FROM workspace_leads l LEFT JOIN wa_conversations c ON c.lead_id=l.id AND c.session_id=$2 WHERE l.id=$1 FOR UPDATE OF l',
+            [row.id, event.sessionId],
           )
         ).rows[0];
         if (
           !current ||
           current.ai_paused ||
+          !current.ai_enabled ||
           current.archived_at ||
           current.ai_control_revision !== row.ai_control_revision
         ) {

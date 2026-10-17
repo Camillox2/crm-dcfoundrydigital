@@ -61,6 +61,83 @@ export async function registerWhatsAppChat(
     for (const response of realtime.connections) response.end();
   });
   const params = z.object({ id: uuid, leadId: uuid });
+  app.get(
+    '/api/v1/whatsapp/sessions/:id/conversations',
+    {
+      preHandler: [requirePermission('whatsapp:read')],
+    },
+    async (req, reply) => {
+      reply.header('Cache-Control', 'private, no-store');
+      const id = uuid.parse((req.params as { id: string }).id),
+        store = await repo(),
+        user = req.authUser!;
+      const waScope = resolveGrantedScope(user.roles, 'whatsapp:read');
+      const leadScope =
+        resolveGrantedScope(user.roles, 'lead:read') ??
+        resolveGrantedScope(user.roles, 'contact:read');
+      if (!leadScope) throw new WorkspaceError(403, 'Seu perfil não pode listar contatos.');
+      const session = (await store.pool.query('SELECT * FROM wa_sessions WHERE id=$1', [id]))
+        .rows[0];
+      if (!session) throw new WorkspaceError(404, 'Sessão indisponível.');
+      const rows = (
+        await store.pool.query(
+          `SELECT l.id,c.id AS conversation_id,l.name,l.company,l.phone,c.ai_enabled,m.body AS last_message,m.sent_at AS last_at,
+       COALESCE((SELECT jid FROM wa_identities WHERE session_id=$1 AND lead_id=l.id ORDER BY created_at DESC LIMIT 1),CASE WHEN l.phone ~ '^\\+[1-9][0-9]{7,14}$' THEN substring(l.phone FROM 2)||'@s.whatsapp.net' ELSE NULL END) AS jid
+       FROM wa_conversations c JOIN workspace_leads l ON l.id=c.lead_id LEFT JOIN users u ON u.id=l.owner_id
+       LEFT JOIN LATERAL (SELECT body,sent_at FROM wa_messages WHERE session_id=$1 AND lead_id=l.id ORDER BY sent_at DESC,id DESC LIMIT 1) m ON true
+       WHERE l.archived_at IS NULL AND c.session_id=$1
+       AND ($2::boolean OR l.owner_id=$3::uuid OR ($4::boolean AND u.team_id=$5::uuid))
+       AND ($6::boolean OR l.owner_id=$3::uuid OR ($7::boolean AND u.team_id=$5::uuid))
+       ORDER BY m.sent_at DESC NULLS LAST,l.id LIMIT 100`,
+          [
+            id,
+            waScope === 'all',
+            user.id,
+            waScope === 'team',
+            user.teamId ?? null,
+            leadScope === 'all',
+            leadScope === 'team',
+          ],
+        )
+      ).rows;
+      let requested = 0;
+      const items = [];
+      for (const row of rows) {
+        const key = id + '/' + session.generation + '/' + row.jid;
+        const cached = realtime.photos.get(key);
+        if (
+          (!cached || cached.until <= Date.now()) &&
+          requested < 20 &&
+          row.jid &&
+          session.enabled &&
+          session.provider === 'baileys' &&
+          session.status === 'connected' &&
+          (realtime.photoRequests.get(key) ?? 0) < Date.now()
+        ) {
+          if (realtime.photoRequests.size >= 200) realtime.photoRequests.clear();
+          realtime.photoRequests.set(key, Date.now() + 30000);
+          await store.pool.query(
+            "INSERT INTO wa_commands(session_id,generation,command_type,jid) VALUES($1,$2,'photo',$3)",
+            [id, session.generation, row.jid],
+          );
+          requested++;
+        }
+        const { jid: _jid, ...contact } = row;
+        items.push({
+          ...contact,
+          photoUrl:
+            cached &&
+            cached.until > Date.now() &&
+            session.provider === 'baileys' &&
+            session.status === 'connected'
+              ? cached.url
+              : null,
+        });
+      }
+      if (requested) await flush().catch(() => undefined);
+      return { items };
+    },
+  );
   const access = async (req: FastifyRequest, action: 'read' | 'create') => {
     const input = params.parse(req.params),
       user = req.authUser!;
@@ -147,6 +224,7 @@ export async function registerWhatsAppChat(
       const client = await store.pool.connect();
       try {
         await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [input.id]);
         const found = (
           await client.query('SELECT session_id,lead_id,actor_id FROM wa_messages WHERE id=$1', [
             body.requestId,
@@ -159,6 +237,24 @@ export async function registerWhatsAppChat(
             found.actor_id !== req.authUser!.id)
         )
           throw new WorkspaceError(409, 'Identificador de envio já utilizado.');
+        if (!found) {
+          const limit = Number(process.env.WHATSAPP_SENDS_PER_MINUTE || 30);
+          const count = Number(
+            (
+              await client.query(
+                "SELECT count(*) AS total FROM wa_commands WHERE session_id=$1 AND command_type='send' AND created_at>now()-interval '1 minute'",
+                [input.id],
+              )
+            ).rows[0].total,
+          );
+          if (!Number.isInteger(limit) || limit < 1 || limit > 120)
+            throw new WorkspaceError(503, 'Configure WHATSAPP_SENDS_PER_MINUTE entre 1 e 120.');
+          if (count >= limit)
+            throw new WorkspaceError(
+              429,
+              'Limite de envios por minuto atingido. Aguarde antes de enviar novamente.',
+            );
+        }
         if (!found)
           await applyFoundryControl(client, input.leadId, true, undefined, req.authUser!.id);
         await client.query(

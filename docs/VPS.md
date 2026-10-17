@@ -2,6 +2,8 @@
 
 ## Estado e recursos
 
+A migration 0016 complementa o WhatsApp com conversas tipadas (`wa_conversations`), o campo persistente `ai_enabled` sincronizado com o controle do contato, vínculos das mensagens e índices para consulta/limite de envio. Preserva históricos e reúne os JIDs do mesmo lead na mesma conversa por sessão.
+
 Os itens 1 a 10 usam migrations 0006–0015, tabelas PostgreSQL com colunas específicas, versões e auditoria. As antigas tabelas genéricas de documentos foram migradas; `workspace_documents` e `workspace_document_versions` agora são **views de leitura**, sem armazenamento JSON de registros. Conversas internas têm mensagens em tabelas filhas. Faça backup antes de migrar uma instalação existente. Migrations anteriores não devem ser editadas.
 
 Continuam os sete papéis e os escopos próprio/equipe/todos. A integração autenticada de métricas Ads permanece em `POST /api/v1/integrations/ads/metrics`. A migration não remove nem renomeia `ai_usage_events`; preserve a aba e a instrumentação de `feat/ai-usage` quando essa branch for integrada. O reset preserva essa tabela, caso exista.
@@ -44,7 +46,7 @@ Valores vazios em `.env.example` são intencionais. Não coloque segredos em `NE
 | PostgreSQL | `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `CRM_DB_POOL_SIZE=10` | URI com host `postgres` no Compose, senha própria e caracteres especiais codificados. Não configure fallback para outro CRM. |
 | Autenticação | `JWT_ACCESS_SECRET`, `ENCRYPTION_MASTER_KEY_HEX` | Segredos diferentes: JWT com 64+ caracteres e chave AES com 32 bytes em hexadecimal. Gere cada um separadamente, por exemplo com `openssl rand -hex 32`. Preserve a chave AES junto aos backups. |
 | Administrador inicial | `CRM_ADMIN_EMAIL`, `CRM_ADMIN_NAME`, `CRM_ADMIN_PASSWORD` | Senha com 12+ caracteres; remover após criar a conta. |
-| Redis e WhatsApp | `REDIS_URL=redis://redis:6379`, `WHATSAPP_SESSION_DIR=/data/whatsapp`, `WHATSAPP_MAX_SESSIONS=1` | Worker usa filas Redis e uma sessão por padrão. |
+| Redis e WhatsApp | `REDIS_URL=redis://redis:6379`, `WHATSAPP_SESSION_DIR=/data/whatsapp-auth`, `WHATSAPP_MAX_SESSIONS=1`, `WHATSAPP_SENDS_PER_MINUTE=30` | Uma sessão e um worker dono. Limite entre 1 e 120 por minuto, aplicado na API e na janela Redis do worker. |
 | Arquivos | `CRM_UPLOAD_DIR=/data/uploads` | Mesmo volume na API e no worker. |
 | Foundry | `GEMINI_API_KEY`, `GEMINI_MODELS` | Somente no servidor. Até dez IDs separados por vírgula; sem lista, há descoberta de modelos disponíveis. |
 | E-mail | `SMTP_HOST`, `SMTP_PORT=465`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | 465 usa TLS implícito; outras portas exigem STARTTLS. Remetente autorizado no provedor. |
@@ -72,11 +74,29 @@ UTMs são capturadas da URL do formulário/chat. O GCLID só é enviado à integ
 
 ## WhatsApp, mídia e recuperação — itens 1 e 2
 
-Abra **WhatsApp → Conectar** e escolha QR code ou código de pareamento. No telefone, use **Aparelhos conectados**. O código pede telefone E.164 com + e DDI; QR e código expiram na API após 60 segundos e só aparecem para quem tem permissão de gerenciar a sessão.
+Abra **WhatsApp → Conectar** como administrador e escolha QR code ou código de pareamento. No telefone, use **Aparelhos conectados**. O código pede telefone E.164 com + e DDI; QR e código expiram na API após 60 segundos e só aparecem para administradores. O QR atualiza sozinho; o número aparece quando conectado. A aba **Preparar mensagem** continua disponível para copiar um texto ou abri-lo no aplicativo do WhatsApp.
 
-A sessão fica no volume `whatsapp_sessions`, montado **somente no worker** em `/data/whatsapp`. Preserve esse volume; não use `docker compose down -v` ao atualizar. Reinício restaura sessões habilitadas e tenta reconectar com espera progressiva. Desconectar pausa sem apagar as credenciais; para revogar o dispositivo, use o telefone. Trocar de provedor invalida a geração anterior e limpa códigos/status; não mantém `connected_meta`. A seleção Meta apenas desliga Baileys, não implementa uma integração Meta.
+A sessão fica no volume `whatsapp_sessions`, montado **somente no worker** em `/data/whatsapp-auth`, com uma pasta por UUID. Preserve esse volume; não use `docker compose down -v` ao atualizar. Se usava o caminho anterior `/data/whatsapp`, o nome do volume permanece o mesmo: o Compose apenas remonta o mesmo conteúdo no caminho novo. Não crie outro volume vazio ao atualizar.
 
-O histórico chega em lotes limitados, sem cópia completa na RAM. Por padrão só associa contatos conhecidos. A opção de criar contatos históricos é explícita. Um LID sem telefone não vira número. Contatos são encontrados por telefone E.164/JID dentro do escopo. A cobertura depende do telefone; porcentagem do provedor não garante todo o histórico. Sincronizar solicita até 50 mensagens anteriores.
+Reinício restaura sessões habilitadas e tenta reconectar com backoff de 2 a 60 segundos. O código 515 do Baileys aguarda a gravação das credenciais do pareamento antes de recriar o socket. Logout confirmado (401) ou sessão inválida (500) limpa apenas a pasta daquela sessão e gera um QR novo. Conexão substituída (440) para as tentativas para não disputar o telefone. **Desconectar** pela interface pausa sem apagar as credenciais; para revogar o dispositivo, use o telefone ou o reset abaixo. Trocar de provedor invalida a geração anterior e limpa códigos/status; não mantém `connected_meta`. A seleção Meta apenas desliga Baileys, não implementa uma integração Meta.
+
+Há uma lease exclusiva no Redis (`dc-wa-worker-owner`, 30 segundos), renovada a cada 5 segundos. Outro processo recusa iniciar enquanto houver dono. Se perder a lease ou o Redis, o dono fecha os sockets e encerra; `restart: unless-stopped` tenta novamente. A fila só começa a consumir após restaurar as sessões. Não remova essa chave manualmente para iniciar um segundo worker.
+
+Para resetar **só a autenticação**, obtenha o UUID da sessão em `GET /api/v1/whatsapp/status` autenticado e execute na VPS, substituindo `UUID_DA_SESSAO`. O utilitário valida o caminho e recusa rodar enquanto outro worker possuir a lease:
+
+```sh
+docker compose --env-file .env -f infra/docker-compose.yml stop worker
+docker compose --env-file .env -f infra/docker-compose.yml run --rm --no-deps worker node --import tsx apps/worker/src/reset-auth.ts UUID_DA_SESSAO
+docker compose --env-file .env -f infra/docker-compose.yml --profile whatsapp up -d worker
+```
+
+Depois clique **Conectar** no CRM para gerar um vínculo novo. Leads, conversas e mensagens do PostgreSQL são preservados. Se o processo anterior foi morto à força, aguarde a lease expirar em até 30 segundos. Faça esse reset somente se realmente deseja descartar o vínculo salvo.
+
+Endpoints: `GET /api/v1/whatsapp/status`, `POST /api/v1/whatsapp/connect`, `/disconnect` e `/pair-code` (telefone em `phone`). Conexão e desconexão exigem administrador. As rotas existentes `/sessions` e `/sessions/:id/*` continuam disponíveis; conversas em `GET /sessions/:id/conversations`, mensagens/envio/foto em `/sessions/:id/leads/:leadId/{messages,photo}`, e SSE autenticado em `/sessions/:id/events`. QR e código não entram em logs nem no canal SSE; a tela busca o estado autorizado.
+
+O histórico chega em lotes limitados, sem cópia completa na RAM. Por padrão só associa contatos conhecidos. A opção de criar contatos históricos é explícita. Um LID sem telefone não vira número: uma mensagem nova pode criar o lead pelo JID, com telefone vazio; o telefone só é preenchido quando o provedor informa o E.164. Contatos são encontrados por telefone E.164/JID dentro do escopo. A cobertura depende do telefone; porcentagem do provedor não garante todo o histórico. Sincronizar solicita até 50 mensagens anteriores.
+
+O limite de envios inclui pessoas, Foundry e tentativas, fica no Redis e sobrevive a reinícios. Excesso de fila é adiado sem bloquear conectar/desconectar; a API também responde 429 ao excesso de novos pedidos. A Foundry começa desativada globalmente; o controle por contato e os eventos de recebimento ficam preparados, e só respondem automaticamente se um administrador habilitar o agente nas configurações.
 
 O chat permite texto, emoji, imagem, áudio e documento de até 16 MB. Mostra fila, envio, entrega e leitura separadamente. Outbox PostgreSQL retoma comandos após queda do Redis e IDs evitam duplicação. SSE exige autenticação; mensagens, anexos e fotos respeitam o escopo do lead. Fotos são consultadas na sessão ativa com cache limitado em memória por geração; foto privada usa iniciais. Arquivos ficam em `crm_uploads`, não são servidos diretamente pelo Caddy e exigem autorização em cada leitura. Mídia histórica não é baixada automaticamente.
 

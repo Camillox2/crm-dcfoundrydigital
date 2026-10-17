@@ -42,7 +42,7 @@ export class WhatsAppStore {
   async list(actor: WorkspaceActor) {
     return (
       await this.pool.query(
-        `SELECT s.id FROM wa_sessions s WHERE ${allowed.replaceAll('$2', '$1').replaceAll('$3', '$2').replaceAll('$4', '$3').replaceAll('$5', '$4')} ORDER BY s.created_at LIMIT 10`,
+        `SELECT s.id FROM wa_sessions s WHERE ${allowed.replaceAll('$2', '$1').replaceAll('$3', '$2').replaceAll('$4', '$3').replaceAll('$5', '$4')} ORDER BY s.enabled DESC,s.updated_at DESC,s.created_at DESC LIMIT 10`,
         [actor.id, actor.scope === 'all', actor.scope === 'team', actor.teamId],
       )
     ).rows.map((r) => r.id as string);
@@ -82,6 +82,11 @@ export class WhatsAppStore {
           );
       const session = r.rows[0];
       await client.query(
+        `WITH cancelled AS (UPDATE wa_commands SET cancelled_at=now() WHERE session_id=$1 AND generation<$2 AND cancelled_at IS NULL RETURNING message_id)
+         UPDATE wa_messages SET delivery='failed' WHERE delivery='queued' AND id IN (SELECT message_id FROM cancelled)`,
+        [session.id, session.generation],
+      );
+      await client.query(
         `INSERT INTO wa_commands(session_id,generation,command_type,phone) VALUES($1,$2,'connect',$3)`,
         [session.id, session.generation, input.phone ?? null],
       );
@@ -103,38 +108,61 @@ export class WhatsAppStore {
     }
   }
   async command(id: string, type: 'disconnect' | 'sync', actor: WorkspaceActor) {
-    const session = await this.session(id, actor);
-    const anchor =
-      type === 'sync'
-        ? (
-            await this.pool.query(
-              'SELECT external_id,direction,sent_at,jid FROM wa_messages WHERE session_id=$1 ORDER BY sent_at ASC LIMIT 1',
-              [id],
-            )
-          ).rows[0]
-        : null;
-    if (type === 'sync' && !anchor)
-      throw new WorkspaceError(
-        409,
-        'O histórico inicial chega após parear. Aguarde a primeira conversa antes de pedir mensagens anteriores.',
+    await this.session(id, actor);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const session = (await client.query('SELECT * FROM wa_sessions WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      const anchor =
+        type === 'sync'
+          ? (
+              await client.query(
+                'SELECT external_id,direction,sent_at,jid FROM wa_messages WHERE session_id=$1 ORDER BY sent_at ASC LIMIT 1',
+                [id],
+              )
+            ).rows[0]
+          : null;
+      if (type === 'sync' && !anchor)
+        throw new WorkspaceError(
+          409,
+          'O histórico inicial chega após parear. Aguarde a primeira conversa antes de pedir mensagens anteriores.',
+        );
+      if (type === 'disconnect') {
+        session.generation++;
+        await client.query(
+          `UPDATE wa_sessions SET generation=$2,enabled=false,status='disconnected',qr=NULL,pairing_code=NULL,credentials_expires_at=NULL,updated_at=now() WHERE id=$1`,
+          [id, session.generation],
+        );
+        await client.query(
+          `WITH cancelled AS (UPDATE wa_commands SET cancelled_at=now() WHERE session_id=$1 AND generation<$2 AND cancelled_at IS NULL RETURNING message_id)
+         UPDATE wa_messages SET delivery='failed' WHERE delivery='queued' AND id IN (SELECT message_id FROM cancelled)`,
+          [id, session.generation],
+        );
+        await client.query(
+          `INSERT INTO audit_logs(actor_type,actor_id,action,entity_type,entity_id,diff_json) VALUES('user',$1,'whatsapp.disconnect','wa_session',$2,'{}')`,
+          [actor.id, id],
+        );
+      }
+      await client.query(
+        `INSERT INTO wa_commands(session_id,generation,command_type,jid,anchor_id,anchor_from_me,anchor_timestamp) VALUES($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          id,
+          session.generation,
+          type,
+          anchor?.jid ?? null,
+          anchor?.external_id ?? null,
+          anchor?.direction === 'outbound',
+          anchor ? Math.floor(new Date(anchor.sent_at).getTime() / 1000) : null,
+        ],
       );
-    await this.pool.query(
-      `INSERT INTO wa_commands(session_id,generation,command_type,jid,anchor_id,anchor_from_me,anchor_timestamp) VALUES($1,$2,$3,$4,$5,$6,$7)`,
-      [
-        id,
-        session.generation,
-        type,
-        anchor?.jid ?? null,
-        anchor?.external_id ?? null,
-        anchor?.direction === 'outbound',
-        anchor ? Math.floor(new Date(anchor.sent_at).getTime() / 1000) : null,
-      ],
-    );
-    if (type === 'disconnect')
-      await this.pool.query(
-        `UPDATE wa_sessions SET enabled=false,status='disconnected',qr=NULL,pairing_code=NULL,credentials_expires_at=NULL,updated_at=now() WHERE id=$1`,
-        [id],
-      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
   async pending(): Promise<WhatsAppCommand[]> {
     const r = await this.pool.query(
@@ -218,16 +246,16 @@ export class WhatsAppStore {
         await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [phone ?? identity.jid]);
         let lead = (
           await client.query(
-            `SELECT l.id FROM workspace_leads l WHERE l.archived_at IS NULL AND (l.id IN (SELECT lead_id FROM wa_identities WHERE session_id=$1 AND jid=$2) OR ($3::text IS NOT NULL AND l.phone=$3)) AND (l.owner_id=$4 OR l.owner_id IN (SELECT u.id FROM users u JOIN users owner ON owner.id=$4 WHERE owner.team_id IS NOT NULL AND u.team_id=owner.team_id)) ORDER BY l.created_at LIMIT 1`,
+            `SELECT l.id FROM workspace_leads l WHERE l.archived_at IS NULL AND (l.id IN (SELECT lead_id FROM wa_identities WHERE session_id=$1 AND jid=$2) OR ($3::text IS NOT NULL AND l.phone=$3)) AND (l.owner_id=$4 OR l.owner_id IN (SELECT u.id FROM users u JOIN users owner ON owner.id=$4 WHERE owner.team_id IS NOT NULL AND u.team_id=owner.team_id)) ORDER BY CASE WHEN l.id IN (SELECT lead_id FROM wa_identities WHERE session_id=$1 AND jid=$2) THEN 0 ELSE 1 END,l.created_at LIMIT 1`,
             [session.id, identity.jid, phone, session.owner_id],
           )
         ).rows[0];
         if (!lead) {
-          if (!phone || (m.historical && !session.import_history)) continue;
+          if (m.historical && !session.import_history) continue;
           lead = (
             await client.query(
               `INSERT INTO workspace_leads(owner_id,name,company,phone,notes) VALUES($1,$2,$2,$3,'Contato recebido pelo WhatsApp.') RETURNING id`,
-              [session.owner_id, m.name, phone],
+              [session.owner_id, m.name, phone ?? ''],
             )
           ).rows[0];
           created.push(lead.id);
@@ -236,6 +264,11 @@ export class WhatsAppStore {
             [lead.id, JSON.stringify({ sessionId: session.id })],
           );
         }
+        if (phone)
+          await client.query(
+            "UPDATE workspace_leads SET phone=$2,updated_at=now() WHERE id=$1 AND phone=''",
+            [lead.id, phone],
+          );
         await client.query(
           `INSERT INTO wa_identities(session_id,lead_id,jid,phone_e164) VALUES($1,$2,$3,$4) ON CONFLICT(session_id,jid) DO UPDATE SET phone_e164=COALESCE(EXCLUDED.phone_e164,wa_identities.phone_e164)`,
           [session.id, lead.id, identity.jid, phone],

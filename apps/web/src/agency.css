@@ -21,7 +21,8 @@
 }
 .wa-qr {
   width: 256px;
-  height: 256px;
+  height: auto;
+  aspect-ratio: 1;
   max-width: 100%;
   display: block;
   margin: 20px auto;
@@ -29,11 +30,12 @@
 }
 .wa-pairing-code {
   display: block;
-  font-size: 32px;
+  font-size: clamp(20px, 5vw, 32px);
   letter-spacing: 0.18em;
   text-align: center;
   padding: 20px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 .wa-history-option {
   display: flex;
@@ -451,6 +453,26 @@
 }
 .wa-chat-contacts {
   min-width: 0;
+}
+.wa-chat-contacts > label,
+.wa-pairing > label:not(.wa-history-option) {
+  display: grid;
+  gap: 8px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.wa-chat-contacts input,
+.wa-compose textarea,
+.wa-pairing input[type='tel'] {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 11px 12px;
 }
 .wa-chat-contacts > div {
   max-height: 640px;

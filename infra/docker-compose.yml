@@ -109,10 +109,10 @@ services:
       - ../.env
     environment:
       NODE_OPTIONS: '--max-old-space-size=256'
-      WHATSAPP_SESSION_DIR: '/data/whatsapp'
+      WHATSAPP_SESSION_DIR: '/data/whatsapp-auth'
       WHATSAPP_MAX_SESSIONS: '1'
     volumes:
-      - whatsapp_sessions:/data/whatsapp
+      - whatsapp_sessions:/data/whatsapp-auth
       - crm_uploads:/data/uploads
     depends_on:
       postgres:

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { QrCode, RefreshCw, Wifi, WifiOff, X } from 'lucide-react';
 import { Card, Button } from '@dcfoundry/ui';
-import { resolveGrantedScope } from '@dcfoundry/shared';
 import type { AuthenticatedSession } from '../../pages/LoginPage.js';
 import { useCrmApi } from './useModule.js';
 import { useDialogFocus } from '../useDialogFocus.js';
@@ -53,11 +52,16 @@ export function WhatsAppConnection({
   }, [request, user.preview, onSession]);
   useEffect(() => {
     void reload();
+    const changed = () => void reload();
+    window.addEventListener('crm:whatsapp-changed', changed);
     const timer = setInterval(() => void reload(), 3000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('crm:whatsapp-changed', changed);
+    };
   }, [reload]);
   const session = sessions[0],
-    manage = Boolean(resolveGrantedScope(user.roles, 'whatsapp:manage'));
+    manage = user.roles.includes('admin');
   const command = async (action: string) => {
     setBusy(true);
     setError('');
@@ -83,7 +87,7 @@ export function WhatsAppConnection({
         <div className="wa-connection-label">
           {session?.status === 'connected' ? <Wifi size={20} /> : <WifiOff size={20} />}
           <div>
-            <strong>WhatsApp da agência</strong>
+            <strong>Conectar WhatsApp</strong>
             <p>
               {labels[session?.status ?? 'disconnected']} {session?.phone ?? ''}
             </p>

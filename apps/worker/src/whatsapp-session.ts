@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, readFile, writeFile, readdir, rm, rename } from 'node:fs/promises';
+import { join, resolve, relative } from 'node:path';
 import { directIdentity, type WhatsAppCommand, type WhatsAppEvent } from '@dcfoundry/shared';
 
 export interface SessionSocket {
@@ -21,6 +21,7 @@ export interface SessionSocket {
     options?: Record<string, unknown>,
   ): Promise<{ key?: { id?: string | null } } | undefined>;
   profilePictureUrl(jid: string, type: 'image'): Promise<string | undefined>;
+  logout?(): Promise<void>;
   end(error: Error | undefined): void;
 }
 export interface SocketFactoryResult {
@@ -30,6 +31,16 @@ export interface SocketFactoryResult {
 }
 export type SocketFactory = (directory: string) => Promise<SocketFactoryResult>;
 type Emit = (event: WhatsAppEvent) => Promise<void>;
+export function whatsAppSessionDirectory(directory: string, id: string) {
+  if (!/^[a-f0-9-]{36}$/i.test(id)) throw new Error('Invalid session UUID');
+  const root = resolve(directory),
+    target = resolve(root, id);
+  if (relative(root, target) !== id) throw new Error('Invalid session directory');
+  return target;
+}
+export async function resetWhatsAppSession(directory: string, id: string) {
+  await rm(whatsAppSessionDirectory(directory, id), { recursive: true, force: true });
+}
 type Active = {
   command: WhatsAppCommand;
   socket?: SessionSocket;
@@ -38,6 +49,7 @@ type Active = {
   attempt: number;
   stopped: boolean;
   pairingRequested: boolean;
+  credentials: Promise<void>;
 };
 export function createSessionManager({
   factory,
@@ -46,6 +58,7 @@ export function createSessionManager({
   schedule = (callback, ms) => setTimeout(callback, ms),
   onMessage,
   onCommand,
+  assertOwner = () => {},
 }: {
   factory: SocketFactory;
   emit: Emit;
@@ -57,8 +70,21 @@ export function createSessionManager({
     command: WhatsAppCommand,
   ) => Promise<WhatsAppEvent['messages']>;
   onCommand?: (command: WhatsAppCommand, socket: SessionSocket | undefined) => Promise<void>;
+  assertOwner?: () => void;
 }) {
   const sessions = new Map<string, Active>();
+  const generations = new Map<string, { generation: number; id: string }>();
+  let tail = Promise.resolve(),
+    closing = false;
+  // Commands, reconnect timers and connection transitions cannot open competing sockets.
+  const serial = <T>(work: () => Promise<T>): Promise<T> => {
+    const next = tail.then(work);
+    tail = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
+  };
   const event = (active: Active, data: Omit<WhatsAppEvent, 'id' | 'sessionId' | 'generation'>) =>
     emit({
       id: randomUUID(),
@@ -66,12 +92,13 @@ export function createSessionManager({
       generation: active.command.generation,
       ...data,
     });
+  const folder = (id: string) => whatsAppSessionDirectory(directory, id);
   const manifest = async (command: WhatsAppCommand, enabled: boolean) => {
-    const folder = join(directory, command.sessionId);
-    await mkdir(folder, { recursive: true, mode: 0o700 });
-    // Manifest has no credentials, QR, pairing codes, customer messages, or phone number.
+    const target = folder(command.sessionId);
+    await mkdir(target, { recursive: true, mode: 0o700 });
+    const temporary = join(target, 'session.json.tmp');
     await writeFile(
-      join(folder, 'session.json'),
+      temporary,
       JSON.stringify({
         id: command.id,
         sessionId: command.sessionId,
@@ -83,11 +110,12 @@ export function createSessionManager({
       }),
       { mode: 0o600 },
     );
+    await rename(temporary, join(target, 'session.json'));
   };
-  function stop(active: Active) {
-    active.stopped = true;
-    clearTimeout(active.timer);
+  function detach(active: Active) {
     clearInterval(active.heartbeat);
+    const socket = active.socket;
+    active.socket = undefined;
     for (const name of [
       'connection.update',
       'creds.update',
@@ -95,30 +123,89 @@ export function createSessionManager({
       'messaging-history.set',
       'messages.update',
     ])
-      active.socket?.ev.removeAllListeners(name);
-    active.socket?.end(undefined);
-    sessions.delete(active.command.sessionId);
+      socket?.ev.removeAllListeners(name);
+    socket?.end(undefined);
+    return socket;
+  }
+  async function stop(active: Active) {
+    active.stopped = true;
+    clearTimeout(active.timer);
+    detach(active);
+    if (sessions.get(active.command.sessionId) === active)
+      sessions.delete(active.command.sessionId);
+    // Flush pairing credentials before the next socket reads the auth folder.
+    await active.credentials;
+  }
+  const current = (active: Active, socket: SessionSocket) =>
+    !closing &&
+    !active.stopped &&
+    sessions.get(active.command.sessionId) === active &&
+    active.socket === socket;
+  function reconnect(active: Active) {
+    if (active.stopped || closing) return;
+    clearTimeout(active.timer);
+    active.attempt++;
+    active.pairingRequested = false;
+    active.timer = schedule(
+      () => {
+        void serial(async () => {
+          if (active.stopped || closing) return;
+          await start(active).catch(() => recover(active));
+        });
+      },
+      Math.min(60000, 1000 * 2 ** Math.min(active.attempt, 6)),
+    );
+    active.timer.unref?.();
+  }
+  async function recover(active: Active) {
+    if (active.stopped || closing) return;
+    detach(active);
+    await event(active, { type: 'status', status: 'reconnecting' }).catch(() => undefined);
+    reconnect(active);
   }
   async function start(active: Active) {
-    if (active.stopped) return;
+    if (active.stopped || closing) return;
+    assertOwner();
+    detach(active);
+    await active.credentials;
     await event(active, { type: 'status', status: active.attempt ? 'reconnecting' : 'connecting' });
-    const result = await factory(join(directory, active.command.sessionId));
-    if (active.stopped) {
-      result.socket.end(undefined);
+    const result = await factory(folder(active.command.sessionId)),
+      socket = result.socket;
+    if (active.stopped || closing) {
+      socket.end(undefined);
       return;
     }
-    active.socket = result.socket;
+    assertOwner();
+    active.socket = socket;
     const safe = (work: () => Promise<void>) => {
-      void work()
-        .catch(() => event(active, { type: 'status', status: 'error' }))
+      if (!current(active, socket)) return;
+      void (async () => {
+        assertOwner();
+        await work();
+      })()
+        .catch(() =>
+          current(active, socket) ? event(active, { type: 'status', status: 'error' }) : undefined,
+        )
         .catch(() => undefined);
     };
-    result.socket.ev.on('creds.update', () => safe(result.saveCreds));
-    result.socket.ev.on('messages.update', (updates: any[]) =>
+    socket.ev.on('creds.update', () => {
+      if (!current(active, socket)) return;
+      active.credentials = active.credentials
+        .then(async () => {
+          assertOwner();
+          await result.saveCreds();
+        })
+        .catch(() => {
+          if (current(active, socket))
+            void event(active, { type: 'status', status: 'error' }).catch(() => undefined);
+        });
+    });
+    socket.ev.on('messages.update', (updates: any[]) =>
       safe(async () => {
         for (const update of updates) {
-          const identity = directIdentity(update.key?.remoteJid ?? '');
-          const status = Number(update.update?.status);
+          if (!current(active, socket)) return;
+          const identity = directIdentity(update.key?.remoteJid ?? ''),
+            status = Number(update.update?.status);
           if (identity && update.key?.id && status >= 2)
             await event(active, {
               type: 'receipt',
@@ -129,29 +216,47 @@ export function createSessionManager({
         }
       }),
     );
-    result.socket.ev.on('connection.update', (update) =>
-      safe(async () => {
-        if (active.stopped) return;
+    socket.ev.on('connection.update', (update) => {
+      void serial(async () => {
+        if (!current(active, socket)) return;
+        assertOwner();
+        if (update.connection === 'close') {
+          detach(active);
+          await active.credentials;
+          const code = Number(update.lastDisconnect?.error?.output?.statusCode);
+          if (code === 440) {
+            await stop(active);
+            await manifest(active.command, false);
+            await event(active, { type: 'status', status: 'disconnected' });
+            return; // Another device/process replaced us: never fight it in a reconnect loop.
+          }
+          if (code === 401 || code === 500) {
+            // Confirmed logout/bad auth only. A 515 restart preserves newly paired credentials.
+            await event(active, { type: 'status', status: 'logged_out' });
+            await resetWhatsAppSession(directory, active.command.sessionId);
+            active.command.phone = undefined;
+            await manifest(active.command, true);
+          }
+          await event(active, { type: 'status', status: 'reconnecting' });
+          reconnect(active);
+          return;
+        }
         if (update.qr) {
           if (active.command.phone && !result.registered && !active.pairingRequested) {
             active.pairingRequested = true;
-            const code = await result.socket.requestPairingCode(
-              active.command.phone.replace(/^\+/, ''),
-            );
-            await event(active, { type: 'status', status: 'pairing', pairingCode: code });
+            const code = await socket.requestPairingCode(active.command.phone.replace(/^\+/, ''));
+            if (current(active, socket))
+              await event(active, { type: 'status', status: 'pairing', pairingCode: code });
           } else if (!active.command.phone) {
             const { toDataURL } = await import('qrcode');
-            await event(active, {
-              type: 'status',
-              status: 'qr',
-              qr: await toDataURL(update.qr, { width: 256, margin: 2 }),
-            });
+            const qr = await toDataURL(update.qr, { width: 256, margin: 2 });
+            if (current(active, socket)) await event(active, { type: 'status', status: 'qr', qr });
           }
         }
         if (update.connection === 'open') {
           active.attempt = 0;
           active.command.phone = undefined;
-          const phone = directIdentity(result.socket.user?.id ?? '')?.phone ?? undefined;
+          const phone = directIdentity(socket.user?.id ?? '')?.phone ?? undefined;
           await event(active, { type: 'status', status: 'connected', phone });
           clearInterval(active.heartbeat);
           active.heartbeat = setInterval(
@@ -160,32 +265,15 @@ export function createSessionManager({
           );
           active.heartbeat.unref?.();
         }
-        if (update.connection === 'close') {
-          clearInterval(active.heartbeat);
-          const code = update.lastDisconnect?.error?.output?.statusCode;
-          if (code === 401 || code === 440) {
-            active.stopped = true;
-            await manifest(active.command, false);
-            sessions.delete(active.command.sessionId);
-            await event(active, { type: 'status', status: 'logged_out' });
-            return;
-          }
-          active.attempt++;
-          active.pairingRequested = false;
-          await event(active, { type: 'status', status: 'reconnecting' });
-          clearTimeout(active.timer);
-          active.timer = schedule(
-            () => {
-              void start(active).catch(() => recover(active));
-            },
-            Math.min(60000, 1000 * 2 ** Math.min(active.attempt, 6)),
-          );
-        }
-      }),
-    );
+      })
+        .catch(() => (current(active, socket) ? recover(active) : undefined))
+        .catch(() => undefined);
+    });
+    let messagesTail = Promise.resolve();
     const ingest = async (raws: any[], historical: boolean) => {
-      // Never retain a full history store in memory. Persist in batches of at most 50.
       for (let offset = 0; offset < Math.min(raws.length, 1000); offset += 50) {
+        if (!current(active, socket)) return;
+        assertOwner();
         const messages: NonNullable<WhatsAppEvent['messages']> = [];
         for (const raw of raws.slice(offset, offset + 50)) {
           const mapped = onMessage
@@ -193,101 +281,122 @@ export function createSessionManager({
             : parseText(raw, historical);
           messages.push(...(mapped ?? []));
         }
-        if (messages.length) await event(active, { type: 'messages', messages });
+        if (current(active, socket) && messages.length)
+          await event(active, { type: 'messages', messages });
       }
     };
-    result.socket.ev.on('messages.upsert', ({ messages, type }) =>
-      safe(() => ingest(messages, type !== 'notify')),
-    );
-    result.socket.ev.on('messaging-history.set', ({ messages = [], progress = 0 }) =>
-      safe(async () => {
-        await ingest(messages, true);
-        await event(active, {
-          type: 'history',
-          historyProgress: Math.max(0, Math.min(100, progress)),
-        });
-      }),
-    );
+    socket.ev.on('messages.upsert', ({ messages, type }) => {
+      messagesTail = messagesTail
+        .then(() => ingest(messages, type !== 'notify'))
+        .catch(() => undefined);
+    });
+    socket.ev.on('messaging-history.set', ({ messages = [], progress = 0 }) => {
+      messagesTail = messagesTail
+        .then(async () => {
+          await ingest(messages, true);
+          if (current(active, socket))
+            await event(active, {
+              type: 'history',
+              historyProgress: Math.max(0, Math.min(100, progress)),
+            });
+        })
+        .catch(() => undefined);
+    });
   }
-  async function recover(active: Active) {
-    if (active.stopped) return;
-    active.attempt++;
-    await event(active, { type: 'status', status: 'reconnecting' });
-    active.timer = schedule(
-      () => {
-        void start(active).catch(() => recover(active));
-      },
-      Math.min(60000, 1000 * 2 ** Math.min(active.attempt, 6)),
-    );
-  }
-  return {
+  const manager = {
     async command(command: WhatsAppCommand) {
-      if (!/^[a-f0-9-]{36}$/i.test(command.sessionId)) throw new Error('Invalid session');
-      const old = sessions.get(command.sessionId);
-      if (old && command.generation < old.command.generation) return;
-      if (command.type === 'connect') {
-        if (old) stop(old);
-        await manifest(command, command.provider === 'baileys');
-        if (command.provider !== 'baileys') {
-          await emit({
-            id: randomUUID(),
-            sessionId: command.sessionId,
-            generation: command.generation,
-            type: 'status',
-            status: 'disconnected',
-          });
-          return;
+      folder(command.sessionId);
+      return serial(async () => {
+        if (closing) throw new Error('WhatsApp worker is stopping');
+        assertOwner();
+        const old = sessions.get(command.sessionId),
+          known = generations.get(command.sessionId);
+        if (known && command.generation < known.generation) return;
+        if (command.type === 'connect' || command.type === 'disconnect') {
+          if (known?.generation === command.generation && known.id === command.id) return;
+          if (old) await stop(old);
+          if (command.type === 'disconnect') {
+            await manifest(command, false);
+            generations.set(command.sessionId, { generation: command.generation, id: command.id });
+            await emit({
+              id: randomUUID(),
+              sessionId: command.sessionId,
+              generation: command.generation,
+              type: 'status',
+              status: 'disconnected',
+            });
+            return;
+          }
+          if (command.provider !== 'baileys') {
+            await manifest(command, false);
+            generations.set(command.sessionId, { generation: command.generation, id: command.id });
+            await emit({
+              id: randomUUID(),
+              sessionId: command.sessionId,
+              generation: command.generation,
+              type: 'status',
+              status: 'disconnected',
+            });
+            return;
+          }
+          if (sessions.size >= Number(process.env.WHATSAPP_MAX_SESSIONS || 1))
+            throw new Error('Session limit');
+          await manifest(command, true);
+          generations.set(command.sessionId, { generation: command.generation, id: command.id });
+          const active: Active = {
+            command: { ...command },
+            attempt: 0,
+            stopped: false,
+            pairingRequested: false,
+            credentials: Promise.resolve(),
+          };
+          sessions.set(command.sessionId, active);
+          await start(active).catch(() => recover(active));
+        } else {
+          if (!old?.socket || old.command.generation !== command.generation)
+            throw new Error('Session generation unavailable');
+          if (command.type === 'sync') {
+            if (!command.anchor || !command.jid) throw new Error('History anchor unavailable');
+            await old.socket.fetchMessageHistory(
+              50,
+              { id: command.anchor.id, fromMe: command.anchor.fromMe, remoteJid: command.jid },
+              command.anchor.timestamp,
+            );
+          } else {
+            if (!onCommand) throw new Error('Command handler unavailable');
+            await onCommand(command, old.socket);
+          }
         }
-        if (sessions.size >= Number(process.env.WHATSAPP_MAX_SESSIONS || 1))
-          throw new Error('Session limit');
-        const active: Active = { command, attempt: 0, stopped: false, pairingRequested: false };
-        sessions.set(command.sessionId, active);
-        await start(active).catch(() => recover(active));
-      } else if (command.type === 'disconnect') {
-        if (old) stop(old);
-        await manifest(command, false);
-        await emit({
-          id: randomUUID(),
-          sessionId: command.sessionId,
-          generation: command.generation,
-          type: 'status',
-          status: 'disconnected',
-        });
-      } else if (command.type === 'sync') {
-        if (!old?.socket || !command.anchor || !command.jid)
-          throw new Error('Session or history anchor unavailable');
-        await old.socket.fetchMessageHistory(
-          50,
-          { id: command.anchor.id, fromMe: command.anchor.fromMe, remoteJid: command.jid },
-          command.anchor.timestamp,
-        );
-      } else {
-        if (!old || old.command.generation !== command.generation)
-          throw new Error('Session generation unavailable');
-        if (!onCommand) throw new Error('Command handler unavailable');
-        await onCommand(command, old.socket);
-      }
+      });
     },
     socket(id: string) {
       return sessions.get(id)?.socket;
     },
     async restore() {
+      closing = false;
       await mkdir(directory, { recursive: true, mode: 0o700 });
       for (const id of (await readdir(directory)).filter((id) => /^[a-f0-9-]{36}$/i.test(id))) {
         if (sessions.size >= Number(process.env.WHATSAPP_MAX_SESSIONS || 1)) break;
         try {
           const data = JSON.parse(await readFile(join(directory, id, 'session.json'), 'utf8'));
-          if (data.enabled) await this.command(data);
+          if (data.enabled) {
+            generations.delete(id);
+            await manager.command(data);
+          } else generations.set(id, { generation: data.generation, id: data.id });
         } catch {
-          /* Broken manifests are not credentials. A manual reconnect can repair them. */
+          /* A manual reconnect repairs a broken manifest. */
         }
       }
     },
-    close() {
-      for (const active of sessions.values()) stop(active);
+    async close() {
+      closing = true;
+      // Close sockets synchronously on lease loss, even if a command is awaiting I/O.
+      await Promise.all([...sessions.values()].map((active) => stop(active)));
     },
   };
+  return manager;
 }
+
 export function parseText(raw: any, historical: boolean): WhatsAppEvent['messages'] {
   const identity = directIdentity(raw?.key?.remoteJid ?? '', raw?.key?.remoteJidAlt);
   if (!identity || !raw?.key?.id) return [];

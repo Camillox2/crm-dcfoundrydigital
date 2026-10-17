@@ -10,7 +10,9 @@ import {
   bigint,
   index,
   uniqueIndex,
+  foreignKey,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users, pipelines } from './schema.js';
 export const websiteChatSessions = pgTable('website_chat_sessions', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -229,6 +231,24 @@ export const waSessions = pgTable('wa_sessions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+export const whatsappConversations = pgTable(
+  'wa_conversations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => waSessions.id),
+    leadId: uuid('lead_id')
+      .notNull()
+      .references(() => workspaceLeads.id),
+    aiEnabled: boolean('ai_enabled').notNull().default(true),
+    controlRevision: integer('control_revision').notNull().default(1),
+    lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('wa_conversations_session_lead_uq').on(t.sessionId, t.leadId)],
+);
 export const whatsappIdentities = pgTable(
   'wa_identities',
   {
@@ -243,7 +263,14 @@ export const whatsappIdentities = pgTable(
     phoneE164: varchar('phone_e164', { length: 24 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('wa_identities_session_jid_uq').on(t.sessionId, t.jid)],
+  (t) => [
+    uniqueIndex('wa_identities_session_jid_uq').on(t.sessionId, t.jid),
+    foreignKey({
+      name: 'wa_identities_conversation_fk',
+      columns: [t.sessionId, t.leadId],
+      foreignColumns: [whatsappConversations.sessionId, whatsappConversations.leadId],
+    }),
+  ],
 );
 export const whatsappMessages = pgTable(
   'wa_messages',
@@ -271,33 +298,49 @@ export const whatsappMessages = pgTable(
     sentAt: timestamp('sent_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('wa_messages_lead_date_idx').on(t.leadId, t.sentAt)],
+  (t) => [
+    index('wa_messages_lead_date_idx').on(t.leadId, t.sentAt.desc()),
+    index('wa_messages_session_lead_date_idx').on(t.sessionId, t.leadId, t.sentAt.desc()),
+    foreignKey({
+      name: 'wa_messages_conversation_fk',
+      columns: [t.sessionId, t.leadId],
+      foreignColumns: [whatsappConversations.sessionId, whatsappConversations.leadId],
+    }),
+  ],
 );
-export const whatsappCommands = pgTable('wa_commands', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  sessionId: uuid('session_id')
-    .notNull()
-    .references(() => waSessions.id),
-  generation: integer('generation').notNull(),
-  commandType: varchar('command_type', { length: 24 }).notNull(),
-  leadId: uuid('lead_id').references(() => workspaceLeads.id),
-  aiRevision: integer('ai_revision'),
-  handoffAck: boolean('handoff_ack').notNull().default(false),
-  cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
-  phone: varchar('phone', { length: 24 }),
-  messageId: uuid('message_id').references(() => whatsappMessages.id),
-  jid: varchar('jid', { length: 160 }),
-  body: text('body'),
-  mediaKey: varchar('media_key', { length: 200 }),
-  mimeType: varchar('mime_type', { length: 150 }),
-  fileName: varchar('file_name', { length: 180 }),
-  mediaType: varchar('media_type', { length: 16 }),
-  anchorId: varchar('anchor_id', { length: 200 }),
-  anchorFromMe: boolean('anchor_from_me'),
-  anchorTimestamp: bigint('anchor_timestamp', { mode: 'number' }),
-  publishedAt: timestamp('published_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const whatsappCommands = pgTable(
+  'wa_commands',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => waSessions.id),
+    generation: integer('generation').notNull(),
+    commandType: varchar('command_type', { length: 24 }).notNull(),
+    leadId: uuid('lead_id').references(() => workspaceLeads.id),
+    aiRevision: integer('ai_revision'),
+    handoffAck: boolean('handoff_ack').notNull().default(false),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    phone: varchar('phone', { length: 24 }),
+    messageId: uuid('message_id').references(() => whatsappMessages.id),
+    jid: varchar('jid', { length: 160 }),
+    body: text('body'),
+    mediaKey: varchar('media_key', { length: 200 }),
+    mimeType: varchar('mime_type', { length: 150 }),
+    fileName: varchar('file_name', { length: 180 }),
+    mediaType: varchar('media_type', { length: 16 }),
+    anchorId: varchar('anchor_id', { length: 200 }),
+    anchorFromMe: boolean('anchor_from_me'),
+    anchorTimestamp: bigint('anchor_timestamp', { mode: 'number' }),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('wa_commands_send_window_idx')
+      .on(t.sessionId, t.createdAt.desc())
+      .where(sql`${t.commandType}='send'`),
+  ],
+);
 export const whatsappEventReceipts = pgTable('wa_event_receipts', {
   id: uuid('id').primaryKey(),
   receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),

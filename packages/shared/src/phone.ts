@@ -3,24 +3,23 @@
  * garantindo deduplicação de contatos e compatibilidade com Baileys e Google Ads.
  */
 export function normalizePhoneE164(raw: string, defaultCountryCode = '55'): string {
-  const digits = raw.replace(/\D/g, '');
-  if (!digits) {
-    throw new Error('Número de telefone inválido: nenhum dígito encontrado.');
-  }
-
-  const withoutLeadingZeros = digits.replace(/^0+/, '');
-
-  if (withoutLeadingZeros.startsWith(defaultCountryCode) && withoutLeadingZeros.length >= 12) {
-    return `+${withoutLeadingZeros}`;
-  }
-
-  if (withoutLeadingZeros.length === 10 || withoutLeadingZeros.length === 11) {
-    return `+${defaultCountryCode}${withoutLeadingZeros}`;
-  }
-
-  if (raw.trim().startsWith('+')) {
-    return `+${withoutLeadingZeros}`;
-  }
-
-  return `+${defaultCountryCode}${withoutLeadingZeros}`;
+  const input = raw.trim();
+  if (!/^\+?[\d().\s-]+$/.test(input) || !/^[1-9]\d{0,2}$/.test(defaultCountryCode))
+    throw new Error('Número de telefone inválido.');
+  const digits = input.replace(/\D/g, '');
+  const international = input.startsWith('+') || input.startsWith('00');
+  const number = input.startsWith('00')
+    ? digits.slice(2)
+    : international
+      ? digits
+      : digits.replace(/^0+/, '');
+  const normalized =
+    international || (number.startsWith(defaultCountryCode) && number.length >= 12)
+      ? '+' + number
+      : number.length === 10 || number.length === 11
+        ? '+' + defaultCountryCode + number
+        : '';
+  if (!/^\+[1-9]\d{7,14}$/.test(normalized))
+    throw new Error('Número de telefone inválido: use DDD e DDI.');
+  return normalized;
 }

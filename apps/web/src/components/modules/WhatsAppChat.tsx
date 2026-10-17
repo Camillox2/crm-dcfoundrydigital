@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { Send, Paperclip, Smile, MessageSquare, Download, LoaderCircle } from 'lucide-react';
 import { Button, Card } from '@dcfoundry/ui';
 import { resolveGrantedScope, type WorkspaceLead } from '@dcfoundry/shared';
@@ -8,6 +17,9 @@ import { ContactAvatar } from '../ContactAvatar.js';
 import { WhatsAppConnection, type Session } from './WhatsAppConnection.js';
 import { RecordsModule } from './RecordsModule.js';
 import { LeadFoundry } from './FoundryControls.js';
+const PreparedMessage = lazy(() =>
+  import('./CommunicationModules.js').then((m) => ({ default: m.WhatsAppWorkspace })),
+);
 type ChatMessage = {
   id: string;
   body: string;
@@ -110,6 +122,29 @@ export function WhatsAppChatWorkspace({
     [photo, setPhoto] = useState<string | null>(null),
     [emoji, setEmoji] = useState(false),
     [online, setOnline] = useState(false);
+  const [conversations, setConversations] = useState<
+    Array<{
+      id: string;
+      photoUrl: string | null;
+      last_message: string | null;
+      last_at: string | null;
+    }>
+  >([]);
+  const conversationByLead = useMemo(
+    () =>
+      new Map(
+        conversations.map((c) => [c.id, { ...c, order: new Date(c.last_at ?? 0).getTime() }]),
+      ),
+    [conversations],
+  );
+  const orderedLeads = useMemo(
+    () =>
+      [...leads].sort(
+        (a, b) =>
+          (conversationByLead.get(b.id)?.order ?? 0) - (conversationByLead.get(a.id)?.order ?? 0),
+      ),
+    [leads, conversationByLead],
+  );
   const onSession = useCallback((s: Session | undefined) => setSession(s), []),
     contact = leads.find((l) => l.id === selected),
     path = session && contact ? `/api/v1/whatsapp/sessions/${session.id}/leads/${contact.id}` : '';
@@ -117,8 +152,11 @@ export function WhatsAppChatWorkspace({
     list = useRef<HTMLDivElement>(null),
     first = useRef(true);
   const reload = useCallback(async () => {
-    if (!path || user.preview) return;
+    if (!session?.id || user.preview) return;
     try {
+      const contacts = await request('/api/v1/whatsapp/sessions/' + session.id + '/conversations');
+      setConversations(contacts.items);
+      if (!path) return;
       const data = await request(path + '/messages');
       const nearBottom =
         !list.current ||
@@ -134,7 +172,7 @@ export function WhatsAppChatWorkspace({
     } catch (e) {
       setError((e as Error).message);
     }
-  }, [path, request, user.preview]);
+  }, [path, request, user.preview, session?.id]);
   useEffect(() => {
     first.current = true;
     setMessages([]);
@@ -171,6 +209,7 @@ export function WhatsAppChatWorkspace({
               clearTimeout(debounce);
               debounce = setTimeout(() => {
                 void reload();
+                window.dispatchEvent(new Event('crm:whatsapp-changed'));
                 window.dispatchEvent(new Event('crm:leads-changed'));
               }, 120);
             }
@@ -250,9 +289,16 @@ export function WhatsAppChatWorkspace({
         <button aria-pressed={tab === 'templates'} onClick={() => setTab('templates')}>
           Respostas prontas
         </button>
+        <button aria-pressed={tab === 'compose'} onClick={() => setTab('compose')}>
+          Preparar mensagem
+        </button>
       </div>
       {tab === 'templates' ? (
         <RecordsModule user={user} kind="template" />
+      ) : tab === 'compose' ? (
+        <Suspense fallback={<p role="status">Preparando editor de mensagem…</p>}>
+          <PreparedMessage user={user} leads={leads} embedded />
+        </Suspense>
       ) : (
         <div className="wa-chat-layout">
           <aside className="wa-chat-contacts">
@@ -266,7 +312,7 @@ export function WhatsAppChatWorkspace({
               />
             </label>
             <div>
-              {leads
+              {orderedLeads
                 .filter((l) =>
                   `${l.name} ${l.company} ${l.phone}`.toLowerCase().includes(query.toLowerCase()),
                 )
@@ -279,11 +325,15 @@ export function WhatsAppChatWorkspace({
                   >
                     <ContactAvatar
                       name={lead.name}
-                      photoUrl={lead.id === selected ? photo : lead.avatarUrl}
+                      photoUrl={
+                        lead.id === selected
+                          ? photo
+                          : (conversationByLead.get(lead.id)?.photoUrl ?? lead.avatarUrl)
+                      }
                     />
                     <span>
                       <strong>{lead.name}</strong>
-                      <small>{lead.company}</small>
+                      <small>{conversationByLead.get(lead.id)?.last_message || lead.company}</small>
                     </span>
                   </button>
                 ))}
