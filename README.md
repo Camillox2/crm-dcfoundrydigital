@@ -37,4 +37,4 @@ corepack pnpm test
 corepack pnpm --filter @dcfoundry/web build
 ```
 
-O CI usa um PostgreSQL descartável com pgvector para testar migrações, seed vazio, persistência, acesso por proprietário e reset com backup. Também verifica o container da API e a configuração do Caddy. Instalação e provedores do seu VPS devem ser conferidos após a configuração real.
+O workflow de CI está configurado com PostgreSQL descartável e pgvector para testar migrações, seed vazio, persistência, acesso por proprietário e reset com backup, além do container da API e da configuração do Caddy. O Actions não iniciou nesta entrega por bloqueio de cobrança da conta. A validação local passou com 24 testes, incluindo banco PGlite descartável, typecheck e build web. Docker/Compose, instalação e provedores do seu VPS ainda devem ser conferidos após a configuração real.

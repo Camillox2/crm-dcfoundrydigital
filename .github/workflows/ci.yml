@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify:
-    name: Typecheck, Testes Vitest, Build & Verificação de Segredos
+    name: Typecheck, testes, build e VPS
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://crm_ci:crm_ci_only@localhost:5432/dcfoundry_crm_ci

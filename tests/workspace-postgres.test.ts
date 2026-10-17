@@ -7,6 +7,8 @@ import { join, resolve } from 'node:path';
 import { it, expect } from 'vitest';
 import { createDatabaseConnection } from '@dcfoundry/db';
 import { PostgresWorkspaceStore } from '../apps/api/src/workspace-store.js';
+import { buildApiServer } from '../apps/api/src/app.js';
+import { hashPassword } from '../apps/api/src/plugins/auth.js';
 
 it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
   'starts empty, persists owner-scoped leads and clears business data with a verified backup',
@@ -18,6 +20,7 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
     const { pool } = await createDatabaseConnection(url, '');
     const owner = randomUUID(),
       other = randomUUID();
+    const password = randomUUID();
     const backupDirectory = await mkdtemp(join(tmpdir(), 'dcf-crm-reset-'));
     try {
       for (const table of [
@@ -37,7 +40,7 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
           owner,
           `${owner}@ci.example`,
           'CI Owner',
-          'not-a-login-hash',
+          hashPassword(password),
           other,
           `${other}@ci.example`,
           'CI Other',
@@ -68,6 +71,42 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
         (await store.setStage(item.id, 'orcamento', { id: owner, teamId: null, scope: 'own' }))
           ?.stage,
       ).toBe('orcamento');
+      await pool.query(
+        "INSERT INTO user_roles(user_id,role_id) SELECT $1,id FROM roles WHERE slug='vendedor'",
+        [owner],
+      );
+      const { app } = await buildApiServer();
+      try {
+        const login = await app.inject({
+          method: 'POST',
+          url: '/api/v1/auth/login',
+          payload: { email: `${owner}@ci.example`, password },
+        });
+        expect(login.statusCode).toBe(200);
+        expect(login.json().user.roles).toEqual(['vendedor']);
+        const headers = { authorization: `Bearer ${login.json().accessToken}` };
+        const created = await app.inject({
+          method: 'POST',
+          url: '/api/v1/workspace/leads',
+          headers,
+          payload: { name: 'API Contact', company: 'API Company', phone: '+5541999999999' },
+        });
+        expect(created.statusCode).toBe(201);
+        const id = created.json().item.id;
+        const listing = await app.inject({ method: 'GET', url: '/api/v1/workspace/leads', headers });
+        expect(listing.json().items).toHaveLength(2);
+        const advanced = await app.inject({
+          method: 'PATCH',
+          url: `/api/v1/workspace/leads/${id}/stage`,
+          headers,
+          payload: { stage: 'qualificado_ia' },
+        });
+        expect(advanced.statusCode).toBe(200);
+        expect(advanced.json().item.stage).toBe('qualificado_ia');
+        expect(await store.list({ id: other, teamId: null, scope: 'own' })).toHaveLength(0);
+      } finally {
+        await app.close();
+      }
       const beforeRoles = Number(
         (await pool.query('SELECT count(*) AS count FROM roles')).rows[0].count,
       );
