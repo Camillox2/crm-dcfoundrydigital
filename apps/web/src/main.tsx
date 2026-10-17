@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { MotionConfig } from 'framer-motion';
 import { ThemeProvider } from '@dcfoundry/ui';
 import { App } from './App.js';
+import { AppRecovery } from './components/AppRecovery.js';
 
 const rootEl = document.getElementById('root');
 if (rootEl) {
@@ -10,7 +11,9 @@ if (rootEl) {
     <React.StrictMode>
       <MotionConfig reducedMotion="user">
         <ThemeProvider defaultTheme="light">
-          <App />
+          <AppRecovery>
+            <App />
+          </AppRecovery>
         </ThemeProvider>
       </MotionConfig>
     </React.StrictMode>,

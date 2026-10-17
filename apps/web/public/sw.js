@@ -28,7 +28,7 @@ self.addEventListener('notificationclick', (event) => {
     }),
   );
 });
-const STATIC_CACHE = 'dc-foundry-static-v3';
+const STATIC_CACHE = 'dc-foundry-static-v4';
 const STATIC_PATHS = [
   '/offline.html',
   '/app-icon-192.png',
@@ -64,13 +64,41 @@ self.addEventListener('fetch', (event) => {
     return;
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() =>
-        caches
-          .match('/offline.html')
-          .then((response) => response || new Response('CRM sem conexão', { status: 503 })),
-      ),
+      fetch(event.request)
+        .then(async (response) => {
+          // Only the public app shell is reusable offline. Never cache portal/signature URLs.
+          if (response.ok && url.pathname === '/' && !url.search) {
+            const cache = await caches.open(STATIC_CACHE);
+            await cache.put('/', response.clone());
+          }
+          return response;
+        })
+        .catch(async () => {
+          if (url.pathname === '/' && !url.search) {
+            const shell = await caches.match('/');
+            if (shell) return shell;
+          }
+          return (
+            (await caches.match('/offline.html')) ||
+            new Response('CRM sem conexão', { status: 503 })
+          );
+        }),
     );
-  } else if (!url.search && STATIC_PATHS.includes(url.pathname)) {
-    event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
+  } else if (
+    !url.search &&
+    (STATIC_PATHS.includes(url.pathname) ||
+      /^\/assets\/[\w.-]+\.(js|css|woff2)$/.test(url.pathname))
+  ) {
+    event.respondWith(
+      caches.match(event.request).then(async (cached) => {
+        if (cached) return cached;
+        const response = await fetch(event.request);
+        if (response.ok) {
+          const cache = await caches.open(STATIC_CACHE);
+          await cache.put(event.request, response.clone());
+        }
+        return response;
+      }),
+    );
   }
 });

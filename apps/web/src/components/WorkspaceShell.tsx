@@ -141,7 +141,9 @@ export function WorkspaceShell({
       }));
     };
     measure();
-    const frame = requestAnimationFrame(() => setGlider((current) => ({ ...current, ready: true })));
+    const frame = requestAnimationFrame(() =>
+      setGlider((current) => ({ ...current, ready: true })),
+    );
     window.addEventListener('resize', measure);
     return () => {
       cancelAnimationFrame(frame);
@@ -303,8 +305,13 @@ export function WorkspaceShell({
         {allNavigation
           .filter(
             (item) =>
-              ['dashboard', 'kanban', 'whatsapp', 'blog'].includes(item.id) &&
+              ['dashboard', 'kanban', 'whatsapp', 'agenda'].includes(item.id) &&
               canNavigate(user, item.id),
+          )
+          .sort(
+            (a, b) =>
+              ['dashboard', 'kanban', 'whatsapp', 'agenda'].indexOf(a.id) -
+              ['dashboard', 'kanban', 'whatsapp', 'agenda'].indexOf(b.id),
           )
           .map((item) => {
             const Icon = item.icon;
@@ -324,8 +331,8 @@ export function WorkspaceShell({
                     ? 'Início'
                     : item.id === 'kanban'
                       ? 'Funil'
-                      : item.id === 'blog'
-                        ? 'Blog'
+                      : item.id === 'agenda'
+                        ? 'Agenda'
                         : 'WhatsApp'}
                 </span>
               </button>

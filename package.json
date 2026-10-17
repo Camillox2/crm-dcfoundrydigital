@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "DC Foundry Digital CRM — Sites, sistemas, apps, marketing digital e Foundry IA",
-  "packageManager": "pnpm@10.6.0",
+  "packageManager": "pnpm@10.26.0",
   "engines": {
     "node": ">=22.0.0"
   },
@@ -34,7 +34,7 @@
     "prettier": "^3.9.10",
     "supertest": "^7.0.0",
     "tsx": "^4.19.3",
-    "turbo": "^2.4.2",
+    "turbo": "2.11.8",
     "typescript": "^5.7.3",
     "typescript-eslint": "8",
     "vitest": "^3.0.7",

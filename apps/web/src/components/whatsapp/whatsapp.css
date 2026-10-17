@@ -1252,6 +1252,8 @@
   }
   .wa-grid,
   .wa-grid[data-collapsed='true'],
+  .wa-grid[data-panel='false'],
+  .wa-grid[data-collapsed='true'][data-panel='false'],
   .wa-grid[data-panel='true'] {
     grid-template-columns: minmax(0, 1fr);
   }

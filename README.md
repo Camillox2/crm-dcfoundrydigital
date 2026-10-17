@@ -28,6 +28,12 @@ Workspace com a identidade do site DC Foundry Digital: azul, ondas suaves, Found
 - Login sem contas/senhas de demonstração ou entrada automática quando a API falha.
 - Migrações e seed de configuração sem clientes, contratos, faturas ou artigos de exemplo.
 
+## Sessão e aplicativo
+
+O login restaura a sessão ao recarregar. A opção **Manter conectado neste dispositivo** usa uma sessão de até 30 dias; desmarcada, usa cookie de sessão do navegador e limite de oito horas. O cookie de renovação é httpOnly e Secure em produção, com hash no PostgreSQL. Tokens de acesso ficam em memória e são renovados quando necessário. Sair revoga a renovação e encerra a interface nas outras abas.
+
+O PWA oferece instalação no login e no workspace, com orientações para Safari/iPhone. O shell e os arquivos estáticos visitados ficam disponíveis sem conexão; APIs, mensagens e documentos privados não entram no cache. O modo offline informa que alterações não serão salvas. A instalação pública exige HTTPS. API e web precisam ser publicadas juntas para habilitar a nova sessão; a tabela `auth_sessions` já faz parte da migração inicial.
+
 ## Prévia local
 
 ```sh

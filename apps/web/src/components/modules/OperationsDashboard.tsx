@@ -22,7 +22,7 @@ import type { AuthenticatedSession } from '../../pages/LoginPage.js';
 import { useCrmApi } from './useModule.js';
 import { CsvExport } from './CsvExport.js';
 import { money, ModuleNotice, statusLabel } from './ModuleTools.js';
-import {SlaPanel} from './SlaPanel.js';
+import { SlaPanel } from './SlaPanel.js';
 
 const count = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 const shortDate = (d: string) =>
@@ -345,7 +345,6 @@ export function OperationsDashboard({
     )[exportView] ?? 'Exportar série';
   return (
     <div className="ops-dashboard view-stage">
-      <SlaPanel user={user}/>
       <section className="ops-heading">
         <div>
           <h2>
@@ -355,14 +354,14 @@ export function OperationsDashboard({
               </>
             ) : (
               <>
-                Sua operação, <Mark>conectada.</Mark>
+                Seu negócio, <Mark>em movimento.</Mark>
               </>
             )}
           </h2>
           <p>
             {full
               ? 'Comercial, financeiro, conteúdo e aquisição em uma visão comum.'
-              : 'O que mudou no período e o que precisa da sua atenção hoje.'}
+              : 'Uma visão clara para decidir o próximo passo.'}
           </p>
         </div>
         <div className="ops-controls">
@@ -479,7 +478,7 @@ export function OperationsDashboard({
                 title="Onde os negócios estão"
                 description="Distribuição atual por etapa; não representa uma taxa histórica de conversão."
                 rows={r.funnel.map((row) => ({
-                  label: row.stageName??stageLabels[row.stage]??row.stage,
+                  label: row.stageName ?? stageLabels[row.stage] ?? row.stage,
                   value: row.count,
                 }))}
                 onClick={() => onNavigate('kanban')}
@@ -869,6 +868,7 @@ export function OperationsDashboard({
           </details>
         </>
       )}
+      <SlaPanel user={user} />
     </div>
   );
 }

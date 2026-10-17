@@ -3,17 +3,14 @@
   "short_name": "DC Foundry CRM",
   "description": "Projetos, relacionamento, WhatsApp com Foundry IA, propostas, atendimento e marketing da DC Foundry Digital.",
   "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "lang": "pt-BR",
   "display": "standalone",
   "background_color": "#f6f1e8",
   "theme_color": "#102a4c",
   "icons": [
     { "src": "/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    {
-      "src": "/logosemfundonova.png",
-      "sizes": "1254x1254",
-      "type": "image/png",
-      "purpose": "any"
-    }
+    { "src": "/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ]
 }

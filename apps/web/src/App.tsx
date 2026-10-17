@@ -38,6 +38,8 @@ import { LeadFoundry } from './components/modules/FoundryControls.js';
 import { PipelineSettings } from './components/modules/PipelineSettings.js';
 import { removeBrowserPush } from './components/NotificationCenter.js';
 import { LeadImport } from './components/modules/LeadImport.js';
+import { acceptSession, restoreSession, endSession, forgetSession } from './session.js';
+import './refined.css';
 const BlogStudio = lazy(() =>
   import('./components/modules/BlogStudio.js').then((m) => ({
     default: m.BlogStudio,
@@ -109,6 +111,41 @@ const AgendaWorkspace = lazy(() =>
 
 export function App() {
   const [user, setUser] = useState<AuthenticatedSession | null>(null);
+  const [restoring, setRestoring] = useState(
+    !/^\/(portal|assinar)\//.test(window.location.pathname),
+  );
+  const [sessionError, setSessionError] = useState('');
+  useEffect(() => {
+    if (/^\/(portal|assinar)\//.test(window.location.pathname)) return;
+    let active = true;
+    void restoreSession()
+      .then((session) => {
+        if (active) setUser(session);
+      })
+      .catch(() => {
+        if (active)
+          setSessionError(
+            'Não foi possível recuperar sua sessão. Confira sua conexão ou entre novamente.',
+          );
+      })
+      .finally(() => {
+        if (active) setRestoring(false);
+      });
+    const expired = () => setUser(null);
+    const channel =
+      typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('dc-crm-session') : null;
+    if (channel)
+      channel.onmessage = () => {
+        forgetSession();
+        setUser(null);
+      };
+    window.addEventListener('crm:session-expired', expired);
+    return () => {
+      active = false;
+      channel?.close();
+      window.removeEventListener('crm:session-expired', expired);
+    };
+  }, []);
   const [page, setPage] = useState<WorkspacePage>('dashboard');
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('dcfoundry.shell.collapsed') === '1');
   const [waUnread, setWaUnread] = useState(0);
@@ -214,7 +251,24 @@ export function App() {
         <ClientPortal />
       </Suspense>
     );
-  if (!user) return <LoginPage onAuthenticated={setUser} />;
+  if (restoring)
+    return (
+      <div className="session-loading" role="status">
+        <span className="session-spinner" />
+        Abrindo seu workspace…
+      </div>
+    );
+  if (!user)
+    return (
+      <LoginPage
+        initialError={sessionError}
+        onAuthenticated={(session) => {
+          acceptSession(session);
+          setUser(session);
+          setSessionError('');
+        }}
+      />
+    );
   const navigate = (next: WorkspacePage) => {
     if (next === page || !canNavigate(user, next)) return;
     if (window.dispatchEvent(new Event('crm:navigate', { cancelable: true }))) setPage(next);
@@ -288,9 +342,16 @@ export function App() {
       onMobile={setMobileOpen}
       onAccount={() => setAccountOpen((value) => !value)}
       onSearch={showSearch}
-      onLogout={() => {
+      onLogout={async () => {
         if (!window.dispatchEvent(new Event('crm:navigate', { cancelable: true }))) return;
         void removeBrowserPush(user).catch(() => undefined);
+        try {
+          if (!user.preview && !user.localReview) await endSession();
+        } catch (error) {
+          setSessionError(error instanceof Error ? error.message : 'Não foi possível sair.');
+          return;
+        }
+        setSessionError('');
         setUser(null);
         setSelectedId(null);
         setFoundryOpen(false);
@@ -300,6 +361,7 @@ export function App() {
     >
       <main className="crm-main" id="workspace-main">
         <div>
+            {sessionError && <p className="workspace-notice" role="alert">{sessionError}</p>}
             <div className="crm-page view-stage" data-page={page} key={page}>
               <ModuleIntro page={page} />
               {workspace.error && (

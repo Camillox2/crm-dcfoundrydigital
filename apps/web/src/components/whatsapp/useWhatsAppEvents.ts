@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../session.js';
 import { useEffect, useState } from 'react';
 import type { LiveFrame } from './types.js';
 
@@ -16,7 +17,7 @@ export function useWhatsAppEvents(
     let stopped = false;
     const listen = async () => {
       try {
-        const response = await fetch(`/api/v1/whatsapp/sessions/${sessionId}/events`, {
+        const response = await sessionFetch(`/api/v1/whatsapp/sessions/${sessionId}/events`, {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });

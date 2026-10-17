@@ -38,6 +38,7 @@ import { registerWebsiteChatRoutes } from './website-chat-routes.js';
 import { registerIntegrationExtras } from './integration-extras-routes.js';
 import type { PushSender } from './notifications.js';
 import type { ContractMailer } from './contract-delivery.js';
+import { browserSessions } from './browser-sessions.js';
 
 export interface DemoUserRecord {
   id: string;
@@ -121,6 +122,7 @@ export async function buildApiServer(
     connection ??= createDatabaseConnection(process.env.DATABASE_URL, '');
     return connection;
   };
+  const sessions = browserSessions(app, async () => database(), Boolean(options.users));
   const store = async () => {
     if (options.workspaceStore) return options.workspaceStore;
     const db = await database();
@@ -243,6 +245,8 @@ export async function buildApiServer(
       after: { lastLoginAt: new Date().toISOString(), roles: user.roles },
     });
 
+    await sessions.issue(req, reply, payload, parsed.data.remember);
+    reply.header('Cache-Control', 'no-store');
     return reply.status(200).send({
       accessToken,
       user: payload,

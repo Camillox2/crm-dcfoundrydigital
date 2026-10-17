@@ -314,7 +314,7 @@ button:disabled {
 .sidebar-profile > div:last-child {
   color: var(--text-muted) !important;
 }
-.sidebar-profile span {
+.sidebar-profile .profile-dot {
   box-shadow: none !important;
   width: 6px !important;
   height: 6px !important;

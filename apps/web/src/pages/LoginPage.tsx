@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Sun, Moon, ArrowRight } from 'lucide-react';
-import { Button, DcLogo, Mark, useTheme } from '@dcfoundry/ui';
+import { ShieldCheck, Sun, Moon, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Button, DcLogo, Mark, FoundryMascot, useTheme } from '@dcfoundry/ui';
+import { PwaInstall } from '../components/PwaInstall.js';
 import type { RoleName } from '@dcfoundry/shared';
 import { WorkspaceArt } from '../components/WorkspaceArt.js';
 
@@ -18,14 +19,17 @@ export interface AuthenticatedSession {
 
 export interface LoginPageProps {
   onAuthenticated: (user: AuthenticatedSession) => void;
+  initialError?: string;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated, initialError = '' }) => {
   const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError || null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -38,6 +42,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
         body: JSON.stringify({
           email: email.trim(),
           password,
+          remember,
           totpCode: totpCode.trim() || undefined,
         }),
       });
@@ -93,7 +98,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
       </section>
       <section className="login-panel">
         <div className="login-topbar">
-          <span>dcfoundrydigital.com</span>
+          <div className="login-mobile-brand">
+            <DcLogo size={32} subtitle="CRM" />
+          </div>
+          <a
+            className="login-site-link"
+            href="https://dcfoundrydigital.com"
+            target="_blank"
+            rel="noreferrer"
+          >
+            dcfoundrydigital.com
+          </a>
           <button
             className="icon-button"
             type="button"
@@ -109,6 +124,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.1 }}
         >
+          <div className="login-mobile-art" aria-hidden="true">
+            <FoundryMascot size={128} />
+          </div>
           <h2>Bom ter você por aqui.</h2>
           <p>Entre para acompanhar as conversas e dar vida aos próximos projetos.</p>
           {error && (
@@ -120,7 +138,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
             <label>
               E-mail corporativo
               <input
+                name="email"
                 type="email"
+                placeholder="seu@email.com"
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -129,17 +149,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
             </label>
             <label>
               Senha
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <span className="password-field">
+                <input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Sua senha"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  className="password-toggle"
+                  type="button"
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </span>
             </label>
-            <div className="login-form-secondary">
+            <details className="login-two-factor">
+              <summary>
+                <ShieldCheck size={15} />
+                Usar código de autenticação
+              </summary>
               <label>
-                Código 2FA · opcional
+                Código de autenticação
                 <input
                   type="text"
                   inputMode="numeric"
@@ -150,12 +187,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
                   placeholder="000000"
                 />
               </label>
-            </div>
+            </details>
+            <label className="login-remember">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(event) => setRemember(event.target.checked)}
+              />
+              Manter conectado neste dispositivo
+            </label>
             <Button type="submit" size="lg" disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar no workspace'}
               <ArrowRight size={17} />
             </Button>
           </form>
+          <PwaInstall expanded />
           {import.meta.env.DEV && (
             <button
               type="button"

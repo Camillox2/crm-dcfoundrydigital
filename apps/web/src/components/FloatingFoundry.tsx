@@ -1,3 +1,4 @@
+import { sessionFetch } from '../session.js';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, BellOff, ChevronDown, Sparkles, X } from 'lucide-react';
@@ -27,7 +28,7 @@ export function FloatingFoundry({
   useEffect(() => {
     if (!session?.accessToken || session.preview) return;
     const c = new AbortController();
-    fetch('/api/v1/workspace/daily-summary', {
+    sessionFetch('/api/v1/workspace/daily-summary', {
       headers: { Authorization: `Bearer ${session.accessToken}` },
       signal: c.signal,
     })
