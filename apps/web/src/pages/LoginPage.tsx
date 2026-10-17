@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Sun, Moon, ArrowRight, Eye, EyeOff } from 'lucide-react';
-import { Button, DcLogo, Mark, FoundryMascot, useTheme } from '@dcfoundry/ui';
+import { Button, DcLogo, Mark, useTheme } from '@dcfoundry/ui';
 import { PwaInstall } from '../components/PwaInstall.js';
 import type { RoleName } from '@dcfoundry/shared';
 import { WorkspaceArt } from '../components/WorkspaceArt.js';
@@ -125,7 +125,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated, initialEr
           transition={{ duration: 0.35, delay: 0.1 }}
         >
           <div className="login-mobile-art" aria-hidden="true">
-            <FoundryMascot size={128} />
+            <WorkspaceArt />
           </div>
           <h2>Bom ter você por aqui.</h2>
           <p>Entre para acompanhar as conversas e dar vida aos próximos projetos.</p>

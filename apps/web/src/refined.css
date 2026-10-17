@@ -60,6 +60,44 @@ a svg {
 .clean-shell .sidebar-brand {
   margin-bottom: 24px !important;
 }
+.dcf-logo-symbol {
+  display: inline-flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+.dcf-logo-symbol img {
+  display: block;
+  /* The official file has transparent padding around the monogram. */
+  transform: scale(1.3);
+}
+.dcf-logo-accent {
+  color: var(--brand-primary);
+}
+.clean-shell .crm-sidebar .dcf-logo-symbol {
+  background: #f6f1e8;
+}
+.clean-shell .crm-sidebar .dcf-logo-accent {
+  color: #9ccaff;
+}
+.art-cursor {
+  animation: art-cursor 6s ease-in-out infinite;
+}
+@keyframes art-cursor {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  45%,
+  60% {
+    translate: -18px -12px;
+  }
+}
+[data-paused='true'] .art-cursor {
+  animation-play-state: paused;
+}
 .clean-shell .crm-sidebar > div:first-child {
   flex: 1;
   min-height: 0;
@@ -446,9 +484,22 @@ a svg {
   gap: 20px;
   font-size: 14px;
 }
-.app-recovery { padding: 32px; text-align: center; }
-.app-recovery h1 { font-size: clamp(24px, 5vw, 34px); max-width: 22ch; line-height: 1.25; margin: 8px 0 0; letter-spacing: -.04em; }
-.app-recovery p { max-width: 48ch; color: var(--text-secondary); margin: 0 0 8px; }
+.app-recovery {
+  padding: 32px;
+  text-align: center;
+}
+.app-recovery h1 {
+  font-size: clamp(24px, 5vw, 34px);
+  max-width: 22ch;
+  line-height: 1.25;
+  margin: 8px 0 0;
+  letter-spacing: -0.04em;
+}
+.app-recovery p {
+  max-width: 48ch;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+}
 .session-spinner {
   width: 26px;
   height: 26px;
@@ -928,9 +979,19 @@ a svg {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 150px;
+    height: 178px;
     margin-bottom: 18px;
-    overflow: hidden;
+    overflow: visible;
+  }
+  .login-mobile-art .workspace-art {
+    height: 100%;
+    max-width: 340px;
+  }
+  .login-mobile-art .art-foundry {
+    top: 30%;
+    left: 40%;
+    scale: 0.95;
+    transform-origin: top left;
   }
   .login-form-wrap h2 {
     font-size: clamp(27px, 7.2vw, 34px);
@@ -962,11 +1023,14 @@ a svg {
     padding-inline: 20px;
   }
   .login-mobile-art {
-    height: 115px;
+    height: 150px;
     margin-bottom: 16px;
   }
-  .login-mobile-art > * {
-    transform: scale(0.8);
+  .login-mobile-art .art-foundry {
+    scale: 0.8;
+  }
+  .login-mobile-art .art-browser {
+    width: 95px;
   }
   .ops-controls {
     grid-template-columns: minmax(0, 1fr) 44px;
@@ -981,11 +1045,11 @@ a svg {
 }
 @media (max-height: 720px) and (max-width: 860px) {
   .login-mobile-art {
-    height: 90px;
+    height: 132px;
     margin-bottom: 10px;
   }
-  .login-mobile-art > * {
-    transform: scale(0.7);
+  .login-mobile-art .art-foundry {
+    scale: 0.75;
   }
   .login-form-wrap {
     padding-block: 18px;

@@ -240,7 +240,7 @@ export function FloatingFoundry({
         {open ? (
           <ChevronDown size={24} />
         ) : (
-          <FoundryMascot size={58} paused={prefersReducedMotion} />
+          <FoundryMascot size={58} wave paused={prefersReducedMotion} />
         )}
         <span className="foundry-launcher-label">Foundry</span>
       </button>
