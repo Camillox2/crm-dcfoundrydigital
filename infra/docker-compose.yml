@@ -78,6 +78,8 @@ services:
       PORT: '4000'
     ports:
       - '127.0.0.1:4000:4000'
+    volumes:
+      - crm_uploads:/data/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,6 +138,7 @@ services:
           memory: 128M
 
 volumes:
+  crm_uploads:
   postgres_data:
   redis_data:
   caddy_data:

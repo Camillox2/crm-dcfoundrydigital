@@ -23,7 +23,7 @@ export async function createDatabaseConnection(
 
   const primaryPool = new Pool({
     connectionString: targetPrimary,
-    max: 10,
+    max: Math.max(1, Math.min(20, Number(process.env.CRM_DB_POOL_SIZE) || 10)),
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 4_000,
   });
@@ -45,7 +45,7 @@ export async function createDatabaseConnection(
 
     const fallbackPool = new Pool({
       connectionString: fallbackUrl,
-      max: 10,
+      max: Math.max(1, Math.min(20, Number(process.env.CRM_DB_POOL_SIZE) || 10)),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 4_000,
     });

@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { WorkspaceLead, WorkspaceLeadInput } from '@dcfoundry/shared';
+import {
+  resolveGrantedScope,
+  type WorkspaceLead,
+  type WorkspaceLeadInput,
+} from '@dcfoundry/shared';
 import type { AuthenticatedSession } from '../pages/LoginPage.js';
 
 export function useWorkspace(user: AuthenticatedSession | null) {
@@ -31,7 +35,7 @@ export function useWorkspace(user: AuthenticatedSession | null) {
   useEffect(() => {
     setLeads([]);
     setError(null);
-    if (!user?.accessToken || user.preview) return;
+    if (!user?.accessToken || user.preview || !resolveGrantedScope(user.roles, 'lead:read')) return;
     const controller = new AbortController();
     setLoading(true);
     request('/api/v1/workspace/leads', { signal: controller.signal })
@@ -66,5 +70,32 @@ export function useWorkspace(user: AuthenticatedSession | null) {
     });
     setLeads((current) => current.map((item) => (item.id === lead.id ? data.item : item)));
   };
-  return { leads, loading, error, create, advance };
+  const update = async (id: string, input: WorkspaceLeadInput) => {
+    const data = await request(`/api/v1/workspace/leads/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+    setLeads((current) => current.map((item) => (item.id === id ? data.item : item)));
+    return data.item as WorkspaceLead;
+  };
+  const archive = async (id: string) => {
+    await request(`/api/v1/workspace/leads/${id}/archive`, {
+      method: 'PATCH',
+      body: JSON.stringify({ archived: true }),
+    });
+    setLeads((current) => current.filter((item) => item.id !== id));
+  };
+  const archived = async () => {
+    const data = await request('/api/v1/workspace/leads?archived=1');
+    return data.items as WorkspaceLead[];
+  };
+  const restore = async (id: string) => {
+    await request(`/api/v1/workspace/leads/${id}/archive`, {
+      method: 'PATCH',
+      body: JSON.stringify({ archived: false }),
+    });
+    const data = await request('/api/v1/workspace/leads');
+    setLeads(data.items);
+  };
+  return { leads, loading, error, create, advance, update, archive, archived, restore };
 }

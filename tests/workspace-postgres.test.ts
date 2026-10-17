@@ -9,6 +9,8 @@ import { createDatabaseConnection } from '@dcfoundry/db';
 import { PostgresWorkspaceStore } from '../apps/api/src/workspace-store.js';
 import { buildApiServer } from '../apps/api/src/app.js';
 import { hashPassword } from '../apps/api/src/plugins/auth.js';
+import { ModuleStore } from '../apps/api/src/module-store.js';
+import { flushBlogOutbox } from '../apps/api/src/blog-publishing.js';
 
 it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
   'starts empty, persists owner-scoped leads and clears business data with a verified backup',
@@ -22,6 +24,9 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
       other = randomUUID();
     const password = randomUUID();
     const backupDirectory = await mkdtemp(join(tmpdir(), 'dcf-crm-reset-'));
+    const mediaDirectory = await mkdtemp(join(tmpdir(), 'dcf-crm-media-'));
+    const previousMediaDirectory = process.env.CRM_UPLOAD_DIR;
+    process.env.CRM_UPLOAD_DIR = mediaDirectory;
     try {
       for (const table of [
         'workspace_leads',
@@ -93,7 +98,11 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
         });
         expect(created.statusCode).toBe(201);
         const id = created.json().item.id;
-        const listing = await app.inject({ method: 'GET', url: '/api/v1/workspace/leads', headers });
+        const listing = await app.inject({
+          method: 'GET',
+          url: '/api/v1/workspace/leads',
+          headers,
+        });
         expect(listing.json().items).toHaveLength(2);
         const advanced = await app.inject({
           method: 'PATCH',
@@ -103,9 +112,384 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
         });
         expect(advanced.statusCode).toBe(200);
         expect(advanced.json().item.stage).toBe('qualificado_ia');
+        const editedLead = await app.inject({
+          method: 'PUT',
+          url: `/api/v1/workspace/leads/${id}`,
+          headers,
+          payload: {
+            name: 'Contato atualizado',
+            company: 'Empresa atualizada',
+            phone: '+5541999999999',
+          },
+        });
+        expect(editedLead.statusCode, editedLead.body).toBe(200);
+        expect(editedLead.json().item.name).toBe('Contato atualizado');
+        expect(
+          (
+            await app.inject({
+              method: 'PATCH',
+              url: `/api/v1/workspace/leads/${id}/archive`,
+              headers,
+              payload: { archived: true },
+            })
+          ).statusCode,
+        ).toBe(200);
+        expect(
+          (
+            await app.inject({ method: 'GET', url: '/api/v1/workspace/leads?archived=1', headers })
+          ).json().items,
+        ).toHaveLength(1);
+        expect(
+          (
+            await app.inject({
+              method: 'PATCH',
+              url: `/api/v1/workspace/leads/${id}/archive`,
+              headers,
+              payload: { archived: false },
+            })
+          ).statusCode,
+        ).toBe(200);
         expect(await store.list({ id: other, teamId: null, scope: 'own' })).toHaveLength(0);
+        expect(
+          (await app.inject({ method: 'GET', url: '/api/v1/workspace/blog', headers })).statusCode,
+        ).toBe(403);
+        await pool.query(
+          "INSERT INTO user_roles(user_id,role_id) SELECT $1,id FROM roles WHERE slug='admin'",
+          [owner],
+        );
+        const adminLogin = await app.inject({
+          method: 'POST',
+          url: '/api/v1/auth/login',
+          payload: { email: `${owner}@ci.example`, password },
+        });
+        const admin = { authorization: `Bearer ${adminLogin.json().accessToken}` };
+        const article = {
+          title: 'Artigo de integração',
+          slug: 'artigo-integracao',
+          content:
+            '## Conteúdo seguro\n\nUma explicação completa para os leitores. <script>alert(1)</script>',
+          excerpt: 'Resumo do artigo',
+          author: 'Equipe DC',
+          tags: ['software'],
+          status: 'draft',
+        };
+        const draft = await app.inject({
+          method: 'POST',
+          url: '/api/v1/workspace/blog',
+          headers: admin,
+          payload: { data: article },
+        });
+        expect(draft.statusCode, draft.body).toBe(201);
+        const post = draft.json().item;
+        expect(
+          (await app.inject({ method: 'GET', url: '/api/blog/posts/artigo-integracao' }))
+            .statusCode,
+        ).toBe(404);
+        const publication = await app.inject({
+          method: 'PUT',
+          url: `/api/v1/workspace/blog/${post.id}`,
+          headers: admin,
+          payload: { data: { ...article, status: 'published' }, version: 1 },
+        });
+        expect(publication.statusCode, publication.body).toBe(200);
+        const publicArticle = await app.inject({
+          method: 'GET',
+          url: '/api/blog/posts/artigo-integracao',
+        });
+        expect(publicArticle.statusCode, publicArticle.body).toBe(200);
+        expect(publicArticle.json().content).not.toContain('<script>');
+        expect(publicArticle.json().content).toContain('&lt;script&gt;');
+        expect(
+          (await app.inject({ method: 'GET', url: '/api/blog/posts?limit=200&offset=0' })).json()
+            .total,
+        ).toBe(1);
+        expect(
+          (
+            await app.inject({
+              method: 'PUT',
+              url: `/api/v1/workspace/blog/${post.id}`,
+              headers: admin,
+              payload: { data: article, version: 1 },
+            })
+          ).statusCode,
+        ).toBe(409);
+        expect(
+          (
+            await app.inject({
+              method: 'POST',
+              url: '/api/v1/workspace/blog',
+              headers: admin,
+              payload: { data: article },
+            })
+          ).statusCode,
+        ).toBe(409);
+        const versions = await app.inject({
+          method: 'GET',
+          url: `/api/v1/workspace/blog/${post.id}/versions`,
+          headers: admin,
+        });
+        expect(versions.json().items[0].version).toBe(1);
+        expect(
+          (
+            await app.inject({
+              method: 'PATCH',
+              url: `/api/v1/workspace/blog/${post.id}/archive`,
+              headers: admin,
+              payload: { version: 2, archived: true },
+            })
+          ).statusCode,
+        ).toBe(200);
+        expect(
+          (await app.inject({ method: 'GET', url: '/api/blog/posts/artigo-integracao' }))
+            .statusCode,
+        ).toBe(404);
+        expect(
+          (
+            await app.inject({
+              method: 'PATCH',
+              url: `/api/v1/workspace/blog/${post.id}/archive`,
+              headers: admin,
+              payload: { version: 3, archived: false },
+            })
+          ).statusCode,
+        ).toBe(200);
+        expect(
+          (await app.inject({ method: 'GET', url: '/api/blog/posts/artigo-integracao' }))
+            .statusCode,
+        ).toBe(200);
+        const scheduled = await app.inject({
+          method: 'POST',
+          url: '/api/v1/workspace/blog',
+          headers: admin,
+          payload: {
+            data: {
+              ...article,
+              slug: 'agendado',
+              status: 'scheduled',
+              scheduledAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          },
+        });
+        expect(scheduled.statusCode, scheduled.body).toBe(201);
+        expect(
+          (await app.inject({ method: 'GET', url: '/api/blog/posts/agendado' })).statusCode,
+        ).toBe(404);
+        await pool.query(
+          "UPDATE workspace_documents SET data=jsonb_set(data,'{scheduledAt}',to_jsonb($2::text)) WHERE id=$1",
+          [scheduled.json().item.id, new Date(Date.now() - 60000).toISOString()],
+        );
+        expect(
+          (await app.inject({ method: 'GET', url: '/api/blog/posts/agendado' })).statusCode,
+        ).toBe(200);
+        const scheduledRename = await app.inject({
+          method: 'PUT',
+          url: `/api/v1/workspace/blog/${scheduled.json().item.id}`,
+          headers: admin,
+          payload: { data: { ...article, slug: 'outra-url', status: 'published' }, version: 1 },
+        });
+        expect(scheduledRename.statusCode).toBe(409);
+        const examples = {
+          contract: {
+            title: 'Proposta de software',
+            client: 'CI Company',
+            valueCents: 150000,
+            billing: 'project',
+            scope: 'Escopo de teste',
+            status: 'draft',
+          },
+          invoice: {
+            title: 'Primeira parcela',
+            client: 'CI Company',
+            amountCents: 50000,
+            dueDate: '2026-12-30',
+            status: 'open',
+          },
+          task: {
+            title: 'Revisar a proposta',
+            dueDate: '2026-12-20',
+            status: 'open',
+            priority: 'high',
+          },
+          template: { title: 'Boas-vindas', content: 'Olá, {nome}! Vamos conhecer sua ideia?' },
+          knowledge: {
+            title: 'Sobre os serviços',
+            content: 'Criamos software e experiências digitais sob medida.',
+          },
+          assistant: {
+            title: 'Foundry',
+            instructions: 'Responda em português e nunca invente valores ou resultados.',
+          },
+        };
+        for (const [kind, data] of Object.entries(examples)) {
+          const response = await app.inject({
+            method: 'POST',
+            url: `/api/v1/workspace/${kind}`,
+            headers: admin,
+            payload: { data, leadId: id },
+          });
+          expect(response.statusCode, `${kind}: ${response.body}`).toBe(201);
+          const listing = await app.inject({
+            method: 'GET',
+            url: `/api/v1/workspace/${kind}`,
+            headers: admin,
+          });
+          expect(listing.json().items.length).toBeGreaterThan(0);
+        }
+        expect(
+          (
+            await app.inject({
+              method: 'POST',
+              url: '/api/v1/workspace/invoice',
+              headers: admin,
+              payload: { data: { ...examples.invoice, status: 'paid' } },
+            })
+          ).statusCode,
+        ).toBe(400);
+        const metric = {
+          title: 'Campanha de teste',
+          campaignId: 'CI',
+          account: 'test',
+          date: '2026-10-17',
+          costCents: 1200,
+          impressions: 1000,
+          clicks: 12,
+          conversions: 1,
+          currency: 'BRL',
+        };
+        expect(
+          (
+            await app.inject({
+              method: 'POST',
+              url: '/api/v1/workspace/campaign-import',
+              headers: admin,
+              payload: { items: [metric] },
+            })
+          ).statusCode,
+        ).toBe(200);
+        expect(
+          (
+            await app.inject({
+              method: 'POST',
+              url: '/api/v1/workspace/campaign-import',
+              headers: admin,
+              payload: { items: [{ ...metric, clicks: 15 }] },
+            })
+          ).statusCode,
+        ).toBe(200);
+        const metrics = await app.inject({
+          method: 'GET',
+          url: '/api/v1/workspace/campaign',
+          headers: admin,
+        });
+        expect(metrics.json().items).toHaveLength(1);
+        expect(metrics.json().items[0].data.clicks).toBe(15);
+        const moduleStore = new ModuleStore(pool);
+        await expect(
+          moduleStore.importCampaigns(
+            { id: owner, teamId: null, scope: 'own' },
+            [{ ...metric, campaignId: 'CI-ROLLBACK' }, metric] as any,
+            false,
+          ),
+        ).rejects.toThrow();
+        expect(
+          Number(
+            (
+              await pool.query(
+                "SELECT count(*) AS total FROM workspace_documents WHERE kind='campaign' AND data->>'campaignId'='CI-ROLLBACK'",
+              )
+            ).rows[0].total,
+          ),
+        ).toBe(0);
+        const summary = await app.inject({
+          method: 'GET',
+          url: '/api/v1/workspace/daily-summary',
+          headers: admin,
+        });
+        expect(summary.json().taskPending).toBe(1);
+        expect(summary.json().invoicePending).toBe(1);
+        const media = await app.inject({
+          method: 'POST',
+          url: '/api/v1/media',
+          headers: admin,
+          payload: {
+            image:
+              'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aXioAAAAASUVORK5CYII=',
+          },
+        });
+        expect(media.statusCode, media.body).toBe(201);
+        expect(
+          (await app.inject({ method: 'GET', url: media.json().url })).headers['content-type'],
+        ).toBe('image/png');
+        expect(
+          (
+            await app.inject({
+              method: 'POST',
+              url: '/api/v1/media',
+              headers: admin,
+              payload: { image: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' },
+            })
+          ).statusCode,
+        ).toBe(400);
+        const audit = await app.inject({
+          method: 'GET',
+          url: '/api/v1/workspace/audit',
+          headers: admin,
+        });
+        expect(
+          audit.json().items.some((entry: { action: string }) => entry.action === 'blog.archive'),
+        ).toBe(true);
+        expect(
+          (
+            await app.inject({
+              method: 'POST',
+              url: '/api/v1/workspace/assistant-chat',
+              headers: admin,
+              payload: { message: 'Organize um briefing.' },
+            })
+          ).statusCode,
+        ).toBe(503);
+        expect(
+          (
+            await app.inject({
+              method: 'POST',
+              url: '/api/v1/integrations/ads/metrics',
+              payload: { items: [metric], ownerId: owner },
+            })
+          ).statusCode,
+        ).toBe(401);
       } finally {
         await app.close();
+      }
+      const oldWebhook = process.env.BLOG_SITE_WEBHOOK_URL,
+        oldSecret = process.env.BLOG_REVALIDATE_SECRET;
+      process.env.BLOG_SITE_WEBHOOK_URL = 'https://site.example/api/blog/revalidate';
+      process.env.BLOG_REVALIDATE_SECRET = 'test-only-webhook-secret-32-characters';
+      try {
+        const failed = await flushBlogOutbox(
+          pool,
+          (async () => new Response('{}', { status: 503 })) as typeof fetch,
+        );
+        expect(failed.delivered).toBe(0);
+        expect(
+          Number(
+            (
+              await pool.query(
+                'SELECT count(*) AS total FROM workspace_blog_outbox WHERE attempts>0 AND delivered_at IS NULL',
+              )
+            ).rows[0].total,
+          ),
+        ).toBeGreaterThan(0);
+        await pool.query(
+          'UPDATE workspace_blog_outbox SET next_attempt_at=now() WHERE delivered_at IS NULL',
+        );
+        const retried = await flushBlogOutbox(pool, (async () =>
+          Response.json({ revalidated: true, indexing: { status: 'disabled' } })) as typeof fetch);
+        expect(retried.delivered).toBeGreaterThan(0);
+      } finally {
+        if (oldWebhook === undefined) delete process.env.BLOG_SITE_WEBHOOK_URL;
+        else process.env.BLOG_SITE_WEBHOOK_URL = oldWebhook;
+        if (oldSecret === undefined) delete process.env.BLOG_REVALIDATE_SECRET;
+        else process.env.BLOG_REVALIDATE_SECRET = oldSecret;
       }
       const beforeRoles = Number(
         (await pool.query('SELECT count(*) AS count FROM roles')).rows[0].count,
@@ -139,9 +523,14 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
       expect(backup.database).toBe(database);
       expect(backup.tables.workspace_leads[0].id).toBe(item.id);
     } finally {
+      await pool.query('DELETE FROM workspace_documents WHERE owner_id IN ($1,$2)', [owner, other]);
       await pool.query('DELETE FROM workspace_leads WHERE owner_id IN ($1,$2)', [owner, other]);
       await pool.query('DELETE FROM users WHERE id IN ($1,$2)', [owner, other]);
       await pool.end();
+      if (previousMediaDirectory === undefined) delete process.env.CRM_UPLOAD_DIR;
+      else process.env.CRM_UPLOAD_DIR = previousMediaDirectory;
+      for (const file of await readdir(mediaDirectory)) await unlink(join(mediaDirectory, file));
+      await rmdir(mediaDirectory);
       for (const file of await readdir(backupDirectory)) await unlink(join(backupDirectory, file));
       await rmdir(backupDirectory);
     }

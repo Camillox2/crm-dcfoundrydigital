@@ -21,6 +21,8 @@ import {
   requirePermission,
 } from './plugins/auth.js';
 import { ImmutableAuditService } from './plugins/audit.js';
+import { registerModuleRoutes } from './module-routes.js';
+import { WorkspaceError } from './module-store.js';
 
 export interface DemoUserRecord {
   id: string;
@@ -42,6 +44,20 @@ export async function buildApiServer(
 }> {
   const app = Fastify({ logger: false });
   const auditService = new ImmutableAuditService();
+  app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof WorkspaceError)
+      return reply.status(error.status).send({ error: 'WORKSPACE_ERROR', message: error.message });
+    if (error instanceof z.ZodError)
+      return reply.status(400).send({
+        error: 'VALIDATION_ERROR',
+        message: error.issues[0]?.message ?? 'Confira os campos.',
+        issues: error.flatten(),
+      });
+    return reply.status((error as { statusCode?: number }).statusCode ?? 500).send({
+      error: 'REQUEST_FAILED',
+      message: 'Não foi possível concluir a operação. Confira a conexão e tente novamente.',
+    });
+  });
 
   await app.register(helmet);
   await app.register(cors, {
@@ -76,6 +92,7 @@ export async function buildApiServer(
     const db = await database();
     return db ? new PostgresWorkspaceStore(db.pool) : null;
   };
+  await registerModuleRoutes(app, database);
   app.addHook('onClose', async () => {
     if (connection) await (await connection).pool.end();
   });
@@ -85,7 +102,7 @@ export async function buildApiServer(
     if (process.env.NODE_ENV === 'production') {
       try {
         const db = await database();
-        await db!.pool.query('SELECT 1 FROM workspace_leads LIMIT 1');
+        await db!.pool.query('SELECT 1 FROM workspace_documents LIMIT 1');
       } catch {
         return reply
           .status(503)
@@ -160,6 +177,14 @@ export async function buildApiServer(
     };
 
     const accessToken = signAccessToken(payload);
+    if (!options.users) {
+      const db = await database();
+      await db!.pool.query('UPDATE users SET last_login_at=now() WHERE id=$1', [user.id]);
+      await db!.pool.query(
+        "INSERT INTO audit_logs(actor_type,actor_id,action,entity_type,entity_id,diff_json) VALUES('user',$1::uuid,'auth.login_success','user',$2,'{}')",
+        [user.id, user.id],
+      );
+    }
 
     auditService.record({
       actorType: 'user',
@@ -226,7 +251,11 @@ export async function buildApiServer(
       if (!repository) return reply.status(503).send({ error: 'SETUP_REQUIRED' });
       const user = request.authUser!;
       const scope = resolveGrantedScope(user.roles, 'lead:read')!;
-      return { items: await repository.list({ id: user.id, teamId: user.teamId ?? null, scope }) };
+      const archived =
+        z.object({ archived: z.enum(['0', '1']).optional() }).parse(request.query).archived === '1';
+      return {
+        items: await repository.list({ id: user.id, teamId: user.teamId ?? null, scope }, archived),
+      };
     },
   );
   app.post(
@@ -282,6 +311,57 @@ export async function buildApiServer(
         after: { stage: item.stage },
       });
       return { item };
+    },
+  );
+
+  app.put(
+    '/api/v1/workspace/leads/:id',
+    { preHandler: [requirePermission('lead:update')] },
+    async (request, reply) => {
+      const id = z
+        .string()
+        .uuid()
+        .parse((request.params as { id: string }).id);
+      const input = CreateWorkspaceLeadSchema.parse(request.body);
+      const repository = await store();
+      if (!repository?.update) return reply.status(503).send({ message: 'Banco indisponível.' });
+      const user = request.authUser!;
+      const item = await repository.update(
+        id,
+        { ...input, phone: normalizePhoneE164(input.phone) },
+        {
+          id: user.id,
+          teamId: user.teamId ?? null,
+          scope: resolveGrantedScope(user.roles, 'lead:update')!,
+        },
+      );
+      return item ? { item } : reply.status(404).send({ message: 'Contato não encontrado.' });
+    },
+  );
+  app.patch(
+    '/api/v1/workspace/leads/:id/archive',
+    { preHandler: [requirePermission('lead:update')] },
+    async (request, reply) => {
+      const id = z
+        .string()
+        .uuid()
+        .parse((request.params as { id: string }).id);
+      const repository = await store();
+      if (!repository?.archive) return reply.status(503).send({ message: 'Banco indisponível.' });
+      const user = request.authUser!;
+      const archived = z
+        .object({ archived: z.boolean().default(true) })
+        .parse(request.body ?? {}).archived;
+      const ok = await repository.archive(
+        id,
+        {
+          id: user.id,
+          teamId: user.teamId ?? null,
+          scope: resolveGrantedScope(user.roles, 'lead:update')!,
+        },
+        archived,
+      );
+      return ok ? { archived } : reply.status(404).send({ message: 'Contato não encontrado.' });
     },
   );
 

@@ -75,7 +75,9 @@ export function verifyAccessToken(token: string): AuthUserPayload | null {
   }
 
   try {
-    const decoded = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as AuthUserPayload & {
+    const decoded = JSON.parse(
+      Buffer.from(body, 'base64url').toString('utf8'),
+    ) as AuthUserPayload & {
       exp: number;
     };
     if (decoded.exp < Math.floor(Date.now() / 1000)) {
@@ -139,4 +141,14 @@ export function requirePermission(
       });
     }
   };
+}
+
+export async function requireSession(req: FastifyRequest, reply: FastifyReply) {
+  const header = req.headers.authorization;
+  const user = header?.startsWith('Bearer ') ? verifyAccessToken(header.slice(7).trim()) : null;
+  if (!user)
+    return reply
+      .status(401)
+      .send({ error: 'UNAUTHORIZED', message: 'Entre novamente no workspace.' });
+  req.authUser = user;
 }

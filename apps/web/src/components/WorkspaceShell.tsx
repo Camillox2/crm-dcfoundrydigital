@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DcLogo, useTheme } from '@dcfoundry/ui';
-import type { WorkspacePage } from '@dcfoundry/shared';
+import { resolveGrantedScope, type WorkspacePage, type PermissionKey } from '@dcfoundry/shared';
 import type { AuthenticatedSession } from '../pages/LoginPage.js';
 
 export const navigation = [
@@ -52,6 +52,20 @@ export const navigation = [
   },
 ] as const;
 export const allNavigation = navigation.flatMap((group) => [...group.items]);
+const pageReadPermission: Record<WorkspacePage, PermissionKey> = {
+  dashboard: 'lead:read',
+  kanban: 'lead:read',
+  contracts: 'contract:read',
+  finance: 'finance:read',
+  whatsapp: 'whatsapp:read',
+  ai_console: 'ai_agent:read',
+  marketing: 'marketing_ads:read',
+  blog: 'blog:read',
+  audit: 'audit_log:read',
+};
+export function canNavigate(user: AuthenticatedSession, page: WorkspacePage) {
+  return Boolean(user.preview || resolveGrantedScope(user.roles, pageReadPermission[page]));
+}
 
 export function WorkspaceShell({
   page,
@@ -126,12 +140,18 @@ export function WorkspaceShell({
             </button>
           )}
           <div className="sidebar-groups">
-            {navigation.map((group) => (
-              <div className="sidebar-group" key={group.title}>
-                {!collapsed && <div>{group.title}</div>}
-                <nav aria-label={group.title}>{group.items.map((item) => navButton(item))}</nav>
-              </div>
-            ))}
+            {navigation
+              .filter((group) => group.items.some((item) => canNavigate(user, item.id)))
+              .map((group) => (
+                <div className="sidebar-group" key={group.title}>
+                  {!collapsed && <div>{group.title}</div>}
+                  <nav aria-label={group.title}>
+                    {group.items
+                      .filter((item) => canNavigate(user, item.id))
+                      .map((item) => navButton(item))}
+                  </nav>
+                </div>
+              ))}
           </div>
         </div>
         <div className="sidebar-profile">
@@ -164,7 +184,11 @@ export function WorkspaceShell({
           <div className="topbar-actions">
             <span className="demo-indicator">
               <i />
-              {user.preview ? 'Prévia local' : 'Seu workspace'}
+              {user.localReview
+                ? 'Dados de revisão'
+                : user.preview
+                  ? 'Prévia local'
+                  : 'Seu workspace'}
             </span>
             <button
               type="button"
@@ -210,7 +234,11 @@ export function WorkspaceShell({
       </div>
       <nav className="crm-mobile-nav" aria-label="Navegação inferior">
         {allNavigation
-          .filter((item) => ['dashboard', 'kanban', 'whatsapp', 'blog'].includes(item.id))
+          .filter(
+            (item) =>
+              ['dashboard', 'kanban', 'whatsapp', 'blog'].includes(item.id) &&
+              canNavigate(user, item.id),
+          )
           .map((item) => {
             const Icon = item.icon;
             return (
@@ -269,12 +297,16 @@ export function WorkspaceShell({
                   <X size={20} />
                 </button>
               </div>
-              {navigation.map((group) => (
-                <div className="mobile-nav-group" key={group.title}>
-                  <p>{group.title}</p>
-                  {group.items.map((item) => navButton(item, true))}
-                </div>
-              ))}
+              {navigation
+                .filter((group) => group.items.some((item) => canNavigate(user, item.id)))
+                .map((group) => (
+                  <div className="mobile-nav-group" key={group.title}>
+                    <p>{group.title}</p>
+                    {group.items
+                      .filter((item) => canNavigate(user, item.id))
+                      .map((item) => navButton(item, true))}
+                  </div>
+                ))}
             </motion.section>
           </motion.div>
         )}

@@ -11,17 +11,69 @@ export function FloatingFoundry({
   onOpenChange: setOpen,
   onNavigate,
   onOpenLead,
+  session,
 }: {
   open: boolean;
   onOpenChange: (open: boolean | ((current: boolean) => boolean)) => void;
   leads: WorkspaceLead[];
   onNavigate: (page: WorkspacePage) => void;
   onOpenLead: (lead: WorkspaceLead) => void;
+  session?: { accessToken?: string; preview?: boolean };
 }) {
   const [tipVisible, setTipVisible] = useState(false);
   const launcher = useRef<HTMLButtonElement>(null);
   const { prefersReducedMotion } = useTheme();
-  const insights = getDailyInsights(leads);
+  const [summary, setSummary] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!session?.accessToken || session.preview) return;
+    const c = new AbortController();
+    fetch('/api/v1/workspace/daily-summary', {
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+      signal: c.signal,
+    })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data) => {
+        if (!c.signal.aborted) setSummary(data);
+      })
+      .catch(() => {});
+    return () => c.abort();
+  }, [session?.accessToken, session?.preview, open]);
+  const insights = getDailyInsights(leads).filter(
+    (item) =>
+      !(item.id === 'first-contact' && Object.values(summary).some((v) => v > 0)) &&
+      !(item.id === 'ads-setup' && (summary.campaign ?? 0) > 0),
+  );
+  if (summary.taskPending)
+    insights.unshift({
+      id: 'daily-tasks',
+      title: `${summary.taskPending} tarefas para acompanhar.`,
+      detail: summary.taskOverdue
+        ? `${summary.taskOverdue} estão com prazo vencido. Confira sua agenda.`
+        : 'Sua agenda tem próximos passos em aberto.',
+      action: 'Abrir agenda',
+      page: 'dashboard',
+      tone: summary.taskOverdue ? 'priority' : 'info',
+    });
+  if (summary.invoicePending)
+    insights.unshift({
+      id: 'daily-invoices',
+      title: `${summary.invoicePending} cobranças em aberto.`,
+      detail: summary.invoiceOverdue
+        ? `${summary.invoiceOverdue} passaram do vencimento.`
+        : 'Confira os próximos vencimentos e recebimentos.',
+      action: 'Ver financeiro',
+      page: 'finance',
+      tone: summary.invoiceOverdue ? 'priority' : 'info',
+    });
+  if (summary.blogPending)
+    insights.push({
+      id: 'daily-blog',
+      title: `${summary.blogPending} artigos em preparação.`,
+      detail: 'Rascunhos e agendamentos para acompanhar no seu calendário editorial.',
+      action: 'Abrir editoria',
+      page: 'blog',
+      tone: 'info',
+    });
   useDialogFocus(open);
   useEffect(() => {
     let muted = false;

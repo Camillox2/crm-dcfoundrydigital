@@ -97,6 +97,7 @@ export const ROLE_PERMISSIONS_MATRIX: Record<RoleName, PermissionGrant[]> = {
     { permission: 'quote:approve', scope: 'all' },
     { permission: 'contract:read', scope: 'all' },
     { permission: 'contract:create', scope: 'all' },
+    { permission: 'contract:update', scope: 'all' },
     { permission: 'contract:approve', scope: 'all' },
     { permission: 'logistics:read', scope: 'all' },
     { permission: 'finance:read', scope: 'all' },
@@ -123,6 +124,7 @@ export const ROLE_PERMISSIONS_MATRIX: Record<RoleName, PermissionGrant[]> = {
     { permission: 'quote:update', scope: 'own' },
     { permission: 'contract:read', scope: 'own' },
     { permission: 'contract:create', scope: 'own' },
+    { permission: 'contract:update', scope: 'own' },
   ],
   atendente: [
     { permission: 'lead:read', scope: 'team' },

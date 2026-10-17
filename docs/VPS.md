@@ -74,8 +74,39 @@ await syncPhoto(lead.id, lead.phone);
 
 Associe apenas contatos pertencentes à sessão/organização autorizada. Não tente obter fotos que o WhatsApp não disponibilize. O frontend mostra `avatarUrl` retornado pela API sem enviar referrer. Referência: [projeto Baileys](https://github.com/WhiskeySockets/Baileys).
 
+## Publicar no blog pelo CRM
+
+1. Abra **Blog & conteúdo → Novo artigo**.
+2. Preencha título, resumo e texto. O editor oferece títulos, negrito, listas e links; HTML digitado é tratado como texto.
+3. Envie capa PNG/JPG/WebP de até 2 MB ou informe uma URL HTTPS e descreva a imagem.
+4. Ajuste autor, categoria, tags e os campos de SEO. Salve o rascunho e abra **Prévia**.
+5. Clique em **Publicar artigo** ou escolha um horário futuro e clique em **Agendar artigo**. O feed só expõe artigos publicados ou com agendamento vencido.
+
+O feed fica em `https://SEU_CRM/api/blog/posts`; o detalhe em `/api/blog/posts/slug`. Arquivar ou voltar para rascunho retira o conteúdo do feed. URLs de artigos já publicados são preservadas. Alterações anteriores ficam em **Versões** e só substituem a atual após revisão e novo salvamento. Texto ainda não salvo pode ser recuperado na mesma aba e conta.
+
+No projeto Vercel do site, configure `BLOG_BACKEND_URL=https://SEU_CRM` para o feed e o mesmo `BLOG_REVALIDATE_SECRET` do CRM. No VPS, configure `BLOG_SITE_WEBHOOK_URL=https://dcfoundrydigital.com/api/blog/revalidate`, `CRM_SITE_URL=https://dcfoundrydigital.com` e `API_URL=https://SEU_CRM`. O segredo deve ter pelo menos 32 caracteres. A fila persiste no PostgreSQL e tenta novamente a cada ciclo de 30 segundos com espera progressiva após falhas. Agendamentos são filtrados pelo relógio do banco; a notificação do site entra na fila para a data prevista. O cache público também se renova em até 60 segundos.
+
+O site já possui sitemap, RSS, metadados de artigo e webhook de revalidação/IndexNow. A resposta da sincronização indica entrega ao site, não confirmação de indexação pelos buscadores. Nenhuma variável de produção ou origem do site foi alterada nesta revisão. A comunidade, comentários, curtidas e contas do blog legado continuam sendo uma integração independente; este feed cobre os artigos.
+
+O volume `crm_uploads` preserva capas em `/data/uploads`. Faça backup desse volume e do PostgreSQL. Não limpe o volume durante um upgrade normal.
+
+## Usar os demais módulos
+
+- **Visão geral:** agenda com tarefas, prioridade, prazo, conclusão e reabertura. O Foundry considera registros reais disponíveis para seu perfil.
+- **Funil & leads:** cadastre, busque, edite, avance, arquive e restaure contatos. Vincule um contato ao criar tarefas, propostas e cobranças.
+- **Propostas & contratos:** cadastre escopo e condições, registre o andamento e imprima/salve PDF pelo navegador. Aceite é manual, sem assinatura eletrônica.
+- **Financeiro:** cadastre cobranças, filtre recebidas/em aberto/vencidas e registre a baixa manual com data. Nenhuma transação financeira é executada.
+- **WhatsApp:** prepare mensagens, use modelos com `{nome}` e `{empresa}` e abra o aplicativo. O envio final é feito por você. Pareamento automático continua dependendo do worker Baileys.
+- **Marketing:** adicione métricas ou importe até 500 linhas CSV por lote. Baixe o modelo na tela. Conta, campanha e data identificam uma métrica; importar novamente atualiza o registro. O lote é transacional. O script futuro envia JSON para `/api/v1/integrations/ads/metrics` com Bearer `CRM_ADS_INGEST_TOKEN` e `ownerId` de um usuário ativo. CSV usa reais na coluna `cost`; JSON usa `costCents`.
+- **Foundry IA:** cadastre conhecimento e orientações. Configure `GEMINI_API_KEY` no servidor; opcionalmente informe modelos em `GEMINI_MODELS`, separados por vírgula. Sem lista, o servidor descobre modelos de texto disponíveis na API. Uma falha pode tentar o modelo seguinte; ausência de chave ou erro do provedor é informado. O conteúdo enviado e a base autorizada são compartilhados com o provedor para a resposta. Não há garantia de gratuidade por nome de modelo.
+- **Auditoria:** consulte histórico persistente, filtre por ação/pessoa, abra detalhes e exporte a página em CSV. Não há edição ou exclusão de registros pela tela.
+
+## Atualizar uma instalação existente
+
+Faça backup do PostgreSQL e do volume de imagens. Atualize o código, rode `db:migrate` e `db:seed`, reconstrua web/API e reinicie os serviços. A migração `0003_workspace_modules.sql` adiciona os módulos; não apaga os dados existentes. Não rode `db:reset-data` durante um upgrade comum. O seed continua sem inserir dados de negócio.
+
 ## Escopo funcional desta revisão
 
-Cadastro e leitura persistente de oportunidades, avanço de etapa com permissões, prioridades do Foundry derivadas dos registros, navegação e estados vazios estão implementados. Pareamento WhatsApp, editor do blog, pagamentos, assinatura de contratos, IA generativa e recebimento do script Ads continuam dependendo das respectivas integrações. As telas mostram isso explicitamente.
+Todos os módulos de acompanhamento descritos acima têm ações persistentes. As conexões externas continuam exigindo os dados reais de configuração: Baileys pareado, chave Gemini, origem/feed do blog e script Ads. Pagamento efetivo e assinatura eletrônica permanecem fora do acompanhamento manual desta revisão.
 
-O workflow está configurado para validar Docker, Caddy, migrações, persistência e reset com um PostgreSQL descartável. Nesta entrega, o GitHub Actions não iniciou por bloqueio de cobrança na conta. Os 24 testes passaram localmente, incluindo autenticação, persistência e reset com backup em um banco PGlite descartável; typecheck e build web também passaram. Docker/Compose e os provedores ainda precisam ser executados e conferidos no VPS configurado. Nenhum banco de uma instalação existente foi limpo nesta máquina, pois não havia `DATABASE_URL` configurada.
+O workflow está configurado para validar Docker, Caddy, migrações, persistência e reset com PostgreSQL descartável. O GitHub Actions estava bloqueado por cobrança da conta na revisão anterior. A suíte local inclui autenticação, permissões, CRUD, feed, versões, importação e reset com backup em PGlite. Docker/Compose e provedores reais exigem verificação após configuração. Nenhum banco de produção foi limpo; a prévia desta revisão usa um banco local separado.

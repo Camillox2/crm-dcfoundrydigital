@@ -13,6 +13,7 @@ export interface AuthenticatedSession {
   teamId: string;
   accessToken?: string;
   preview?: boolean;
+  localReview?: boolean;
 }
 
 export interface LoginPageProps {
@@ -159,7 +160,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
             <button
               type="button"
               className="local-preview-button"
-              onClick={() =>
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/dev-review-session');
+                  if (response.ok) {
+                    const result = await response.json();
+                    if (result.accessToken && result.user?.id) {
+                      onAuthenticated({
+                        userId: result.user.id,
+                        fullName: result.user.fullName,
+                        email: result.user.email,
+                        roles: result.user.roles,
+                        teamId: result.user.teamId ?? '',
+                        accessToken: result.accessToken,
+                        localReview: true,
+                      });
+                      return;
+                    }
+                  }
+                } catch {
+                  /* The optional loopback review runner is not part of production. */
+                }
                 onAuthenticated({
                   userId: 'local-preview',
                   fullName: 'Prévia local',
@@ -167,8 +188,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
                   roles: [],
                   teamId: '',
                   preview: true,
-                })
-              }
+                });
+              }}
             >
               Visualizar interface local <ArrowRight size={15} />
             </button>
