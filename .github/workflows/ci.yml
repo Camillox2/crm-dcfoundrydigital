@@ -10,6 +10,23 @@ jobs:
   verify:
     name: Typecheck, Testes Vitest, Build & Verificação de Segredos
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://crm_ci:crm_ci_only@localhost:5432/dcfoundry_crm_ci
+      CRM_TEST_DATABASE_URL: postgresql://crm_ci:crm_ci_only@localhost:5432/dcfoundry_crm_ci
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: crm_ci
+          POSTGRES_PASSWORD: crm_ci_only
+          POSTGRES_DB: dcfoundry_crm_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crm_ci -d dcfoundry_crm_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +43,13 @@ jobs:
           cache: 'pnpm'
 
       - name: Instalar dependências
-        run: pnpm install --frozen-lockfile=false
+        run: pnpm install --frozen-lockfile
+
+      - name: Preparar configuração de teste e banco vazio
+        run: |
+          touch .env
+          pnpm db:migrate
+          pnpm db:seed
 
       - name: Typecheck em todos os pacotes
         run: pnpm -r run typecheck
@@ -36,3 +59,9 @@ jobs:
 
       - name: Build de Produção Web PWA
         run: pnpm --filter @dcfoundry/web build
+
+      - name: Verificar imagem da API para VPS
+        run: docker build -f apps/api/Dockerfile -t dcfoundry-crm-api-check .
+
+      - name: Validar configuração do Caddy
+        run: docker run --rm -e CRM_DOMAIN=localhost -v "$PWD/infra/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile

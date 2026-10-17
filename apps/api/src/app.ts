@@ -3,7 +3,17 @@ import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import { LoginInputSchema } from '@dcfoundry/shared';
+import {
+  LoginInputSchema,
+  CreateWorkspaceLeadSchema,
+  LeadStageSchema,
+  resolveGrantedScope,
+  ROLES,
+  normalizePhoneE164,
+} from '@dcfoundry/shared';
+import { z } from 'zod';
+import { createDatabaseConnection, type DatabaseConnectionResult } from '@dcfoundry/db';
+import { PostgresWorkspaceStore, type WorkspaceStore } from './workspace-store.js';
 import {
   hashPassword,
   verifyPassword,
@@ -18,11 +28,15 @@ export interface DemoUserRecord {
   fullName: string;
   passwordHash: string;
   teamId: string | null;
-  roles: Array<'admin' | 'gestor' | 'vendedor' | 'atendente' | 'financeiro' | 'logistica' | 'marketing'>;
+  roles: Array<
+    'admin' | 'gestor' | 'vendedor' | 'atendente' | 'financeiro' | 'logistica' | 'marketing'
+  >;
   totpEnabled: boolean;
 }
 
-export async function buildApiServer(): Promise<{
+export async function buildApiServer(
+  options: { users?: DemoUserRecord[]; workspaceStore?: WorkspaceStore } = {},
+): Promise<{
   app: FastifyInstance;
   auditService: ImmutableAuditService;
 }> {
@@ -40,45 +54,53 @@ export async function buildApiServer(): Promise<{
     timeWindow: '1 minute',
   });
 
-  // Usuários iniciais em memória para validação imediata de Auth + RBAC + Audit
-  const usersSeed: DemoUserRecord[] = [
-    {
-      id: '11111111-1111-4111-8111-111111111111',
-      email: 'vitor@dcfoundrydigital.com',
-      fullName: 'Vitor Henrique Camillo',
-      passwordHash: hashPassword('DcFoundry#2026'),
-      teamId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      roles: ['admin'],
-      totpEnabled: false,
-    },
-    {
-      id: '22222222-2222-4222-8222-222222222222',
-      email: 'vendedor@dcfoundrydigital.com',
-      fullName: 'Lucas Consultor Comercial',
-      passwordHash: hashPassword('Vendedor#2026'),
-      teamId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      roles: ['vendedor'],
-      totpEnabled: false,
-    },
-    {
-      id: '33333333-3333-4333-8333-333333333333',
-      email: 'logistica@dcfoundrydigital.com',
-      fullName: 'Marcos Logística',
-      passwordHash: hashPassword('Logistica#2026'),
-      teamId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-      roles: ['logistica'],
-      totpEnabled: false,
-    },
-  ];
+  if (process.env.NODE_ENV === 'production' && options.users)
+    throw new Error('Test users are not allowed in production.');
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (!process.env.JWT_ACCESS_SECRET ||
+      process.env.JWT_ACCESS_SECRET.length < 64 ||
+      process.env.JWT_ACCESS_SECRET.startsWith('replace_'))
+  )
+    throw new Error('Configure a strong JWT_ACCESS_SECRET before starting production.');
+  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL)
+    throw new Error('DATABASE_URL is required in production.');
+  let connection: Promise<DatabaseConnectionResult> | undefined;
+  const database = () => {
+    if (!process.env.DATABASE_URL) return null;
+    connection ??= createDatabaseConnection(process.env.DATABASE_URL, '');
+    return connection;
+  };
+  const store = async () => {
+    if (options.workspaceStore) return options.workspaceStore;
+    const db = await database();
+    return db ? new PostgresWorkspaceStore(db.pool) : null;
+  };
+  app.addHook('onClose', async () => {
+    if (connection) await (await connection).pool.end();
+  });
 
   // Healthcheck
-  app.get('/api/v1/health', async () => ({
-    status: 'ok',
-    service: 'DC Foundry Digital CRM API',
-    timestamp: new Date().toISOString(),
-  }));
+  app.get('/api/v1/health', async (_request, reply) => {
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        const db = await database();
+        await db!.pool.query('SELECT 1 FROM workspace_leads LIMIT 1');
+      } catch {
+        return reply
+          .status(503)
+          .send({ status: 'unavailable', service: 'DC Foundry Digital CRM API' });
+      }
+    }
+    return {
+      status: 'ok',
+      service: 'DC Foundry Digital CRM API',
+      databaseConfigured: Boolean(process.env.DATABASE_URL),
+      timestamp: new Date().toISOString(),
+    };
+  });
 
-  // Login com emissão de JWT + Cookie Refresh httpOnly + Registro no Audit Log
+  // Login com JWT e registro real de acesso, sem usuários de demonstração
   app.post('/api/v1/auth/login', async (req, reply) => {
     const parsed = LoginInputSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -88,7 +110,29 @@ export async function buildApiServer(): Promise<{
       });
     }
 
-    const user = usersSeed.find((u) => u.email.toLowerCase() === parsed.data.email.toLowerCase());
+    let user = options.users?.find(
+      (candidate) => candidate.email.toLowerCase() === parsed.data.email.toLowerCase(),
+    );
+    if (!options.users) {
+      const db = await database();
+      if (!db) return reply.status(503).send({ error: 'SETUP_REQUIRED' });
+      const result = await db.pool.query(
+        `SELECT u.id,u.email,u.full_name,u.password_hash,u.team_id,u.totp_enabled,COALESCE(array_agg(r.slug) FILTER (WHERE r.slug IS NOT NULL),'{}') AS roles FROM users u LEFT JOIN user_roles ur ON ur.user_id=u.id LEFT JOIN roles r ON r.id=ur.role_id WHERE lower(u.email)=lower($1) AND u.is_active=true GROUP BY u.id`,
+        [parsed.data.email],
+      );
+      const row = result.rows[0];
+      if (row)
+        user = {
+          id: row.id,
+          email: row.email,
+          fullName: row.full_name,
+          passwordHash: row.password_hash,
+          teamId: row.team_id,
+          roles: row.roles.filter((role: string) => ROLES.includes(role as (typeof ROLES)[number])),
+          totpEnabled: row.totp_enabled,
+        };
+    }
+    if (user?.totpEnabled) return reply.status(403).send({ error: 'TOTP_PROVIDER_REQUIRED' });
     if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
       auditService.record({
         actorType: 'user',
@@ -129,14 +173,6 @@ export async function buildApiServer(): Promise<{
       after: { lastLoginAt: new Date().toISOString(), roles: user.roles },
     });
 
-    reply.setCookie('dcf_refresh_token', `rt_${user.id}_${Date.now()}`, {
-      httpOnly: true,
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/api/v1/auth',
-      maxAge: 60 * 60 * 24 * 7,
-    });
-
     return reply.status(200).send({
       accessToken,
       user: payload,
@@ -150,6 +186,7 @@ export async function buildApiServer(): Promise<{
       preHandler: [requirePermission('contract:approve')],
     },
     async (req, reply) => {
+      if (!options.users) return reply.status(501).send({ error: 'CONTRACT_INTEGRATION_REQUIRED' });
       const { id } = req.params as { id: string };
       const entry = auditService.record({
         actorType: 'user',
@@ -179,6 +216,73 @@ export async function buildApiServer(): Promise<{
     async () => ({
       items: auditService.list(),
     }),
+  );
+
+  app.get(
+    '/api/v1/workspace/leads',
+    { preHandler: [requirePermission('lead:read')] },
+    async (request, reply) => {
+      const repository = await store();
+      if (!repository) return reply.status(503).send({ error: 'SETUP_REQUIRED' });
+      const user = request.authUser!;
+      const scope = resolveGrantedScope(user.roles, 'lead:read')!;
+      return { items: await repository.list({ id: user.id, teamId: user.teamId ?? null, scope }) };
+    },
+  );
+  app.post(
+    '/api/v1/workspace/leads',
+    { preHandler: [requirePermission('lead:create')] },
+    async (request, reply) => {
+      const parsed = CreateWorkspaceLeadSchema.safeParse(request.body);
+      if (!parsed.success) return reply.status(400).send({ error: 'INVALID_LEAD' });
+      const repository = await store();
+      if (!repository) return reply.status(503).send({ error: 'SETUP_REQUIRED' });
+      const item = await repository.create(
+        { ...parsed.data, phone: normalizePhoneE164(parsed.data.phone) },
+        request.authUser!.id,
+      );
+      auditService.record({
+        actorType: 'user',
+        actorId: request.authUser!.id,
+        action: 'lead.create',
+        entityType: 'lead',
+        entityId: item.id,
+        before: null,
+        after: { id: item.id, stage: item.stage },
+      });
+      return reply.status(201).send({ item });
+    },
+  );
+  app.patch(
+    '/api/v1/workspace/leads/:id/stage',
+    { preHandler: [requirePermission('lead:update')] },
+    async (request, reply) => {
+      const id = z
+        .string()
+        .uuid()
+        .safeParse((request.params as { id: unknown }).id);
+      const parsed = z.object({ stage: LeadStageSchema }).safeParse(request.body);
+      if (!id.success || !parsed.success) return reply.status(400).send({ error: 'INVALID_STAGE' });
+      const repository = await store();
+      if (!repository) return reply.status(503).send({ error: 'SETUP_REQUIRED' });
+      const user = request.authUser!;
+      const item = await repository.setStage(id.data, parsed.data.stage, {
+        id: user.id,
+        teamId: user.teamId ?? null,
+        scope: resolveGrantedScope(user.roles, 'lead:update')!,
+      });
+      if (!item) return reply.status(404).send({ error: 'NOT_FOUND' });
+      auditService.record({
+        actorType: 'user',
+        actorId: user.id,
+        action: 'lead.update_stage',
+        entityType: 'lead',
+        entityId: item.id,
+        before: null,
+        after: { stage: item.stage },
+      });
+      return { item };
+    },
   );
 
   return { app, auditService };

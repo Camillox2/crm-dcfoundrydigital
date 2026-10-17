@@ -32,6 +32,7 @@ import {
   calculateCampaignRoiMetrics,
 } from '@dcfoundry/tracking';
 import { buildApiServer } from '../apps/api/src/app.js';
+import { fixtureUsers } from './fixtures/auth-users.js';
 
 describe('Fase 1 — Fundação DC Foundry Digital CRM', () => {
   describe('RBAC Granular (Papéis, Permissões e Escopos own/team/all)', () => {
@@ -39,11 +40,7 @@ describe('Fase 1 — Fundação DC Foundry Digital CRM', () => {
       expect(resolveGrantedScope(['admin'], 'contract:approve')).toBe('all');
       expect(resolveGrantedScope(['admin'], 'marketing_ads:export')).toBe('all');
       expect(
-        canAccess(
-          { userId: 'u-1', roles: ['admin'] },
-          'lead:delete',
-          { ownerId: 'outro-usuario' },
-        ),
+        canAccess({ userId: 'u-1', roles: ['admin'] }, 'lead:delete', { ownerId: 'outro-usuario' }),
       ).toBe(true);
     });
 
@@ -51,15 +48,21 @@ describe('Fase 1 — Fundação DC Foundry Digital CRM', () => {
       const vendedor = { userId: 'vend-1', teamId: 'team-a', roles: ['vendedor'] as const };
 
       expect(canAccess(vendedor, 'lead:update', { ownerId: 'vend-1' })).toBe(true);
-      expect(canAccess(vendedor, 'lead:update', { ownerId: 'vend-2', teamId: 'team-a' })).toBe(false);
+      expect(canAccess(vendedor, 'lead:update', { ownerId: 'vend-2', teamId: 'team-a' })).toBe(
+        false,
+      );
       expect(canAccess(vendedor, 'contract:approve')).toBe(false);
     });
 
     it('permite que Atendente edite leads da mesma equipe (escopo team), mas não de outra equipe', () => {
       const atendente = { userId: 'atend-1', teamId: 'team-a', roles: ['atendente'] as const };
 
-      expect(canAccess(atendente, 'lead:update', { ownerId: 'vend-2', teamId: 'team-a' })).toBe(true);
-      expect(canAccess(atendente, 'lead:update', { ownerId: 'vend-9', teamId: 'team-b' })).toBe(false);
+      expect(canAccess(atendente, 'lead:update', { ownerId: 'vend-2', teamId: 'team-a' })).toBe(
+        true,
+      );
+      expect(canAccess(atendente, 'lead:update', { ownerId: 'vend-9', teamId: 'team-b' })).toBe(
+        false,
+      );
     });
 
     it('garante que os 7 papéis oficiais e o catálogo DC Foundry Digital estão presentes no seed', () => {
@@ -73,7 +76,8 @@ describe('Fase 1 — Fundação DC Foundry Digital CRM', () => {
     const masterKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
     it('criptografa e descriptografa credenciais e escopo confidencial (LGPD) com integridade GCM', () => {
-      const confidentialNote = 'Credenciais staging e arquitetura proprietária do ERP com integração SAP e WhatsApp.';
+      const confidentialNote =
+        'Credenciais staging e arquitetura proprietária do ERP com integração SAP e WhatsApp.';
       const encrypted = encryptSensitiveField(confidentialNote, masterKey);
 
       expect(encrypted.ciphertext).not.toContain('SAP');
@@ -82,7 +86,8 @@ describe('Fase 1 — Fundação DC Foundry Digital CRM', () => {
     });
 
     it('mascara CPF, telefone e e-mail antes de enviar contexto para o LLM', () => {
-      const rawMessage = 'Olá, meu CPF é 123.456.789-00, telefone (11) 98888-7777 e email diretoria@empresa.com.br';
+      const rawMessage =
+        'Olá, meu CPF é 123.456.789-00, telefone (11) 98888-7777 e email diretoria@empresa.com.br';
       const masked = maskPiiForLlm(rawMessage);
 
       expect(masked).toContain('[CPF_MASCARADO]');
@@ -111,9 +116,9 @@ describe('Fase 1 — Fundação DC Foundry Digital CRM', () => {
     });
   });
 
-  describe('API Fastify — Autenticação JWT, Cookie httpOnly, Enforcement 403 RBAC e Audit Log', () => {
+  describe('API Fastify — Autenticação JWT, Enforcement 403 RBAC e Audit Log', () => {
     it('autentica Admin, bloqueia Vendedor com 403 em rota de aprovação e registra tudo no Audit Log', async () => {
-      const { app } = await buildApiServer();
+      const { app } = await buildApiServer({ users: fixtureUsers() });
 
       const vendLoginRes = await app.inject({
         method: 'POST',
@@ -145,7 +150,6 @@ describe('Fase 1 — Fundação DC Foundry Digital CRM', () => {
         },
       });
       expect(adminLoginRes.statusCode).toBe(200);
-      expect(adminLoginRes.headers['set-cookie']).toBeDefined();
       const adminToken = adminLoginRes.json().accessToken as string;
 
       const approveRes = await app.inject({
@@ -166,7 +170,10 @@ describe('Fase 1 — Fundação DC Foundry Digital CRM', () => {
         },
       });
       expect(auditRes.statusCode).toBe(200);
-      const logs = auditRes.json().items as Array<{ action: string; diffJson: Record<string, unknown> }>;
+      const logs = auditRes.json().items as Array<{
+        action: string;
+        diffJson: Record<string, unknown>;
+      }>;
       expect(logs.some((l) => l.action === 'contract.approve')).toBe(true);
       expect(logs.some((l) => l.action === 'auth.login_success')).toBe(true);
 
@@ -206,7 +213,8 @@ describe('Fases 2, 3 e 4 — CRM Core, WhatsApp Multi-Sessão & Agente IA + RAG 
         documentTitle: 'Playbook Comercial — Squads Dedicadas SaaS',
         category: 'catalog' as const,
         chunkIndex: 0,
-        contentText: 'Squad Dedicada Full-Stack com arquiteto sênior, engenharia React/Node e SLA 99.9%.',
+        contentText:
+          'Squad Dedicada Full-Stack com arquiteto sênior, engenharia React/Node e SLA 99.9%.',
         embedding: computeDeterministicEmbedding768('Squad Dedicada Full-Stack engenharia SaaS'),
       },
     ];
@@ -308,7 +316,10 @@ describe('Fase 6 — Marketing, Atribuição & Google Ads Offline Conversions', 
     expect(extractTrackingCodeFromMessage(decodedMsg)).toBe('DCF-A9F3');
 
     const shares = calculateAttributionShares(
-      [touchpoint, { ...touchpoint, utmCampaign: 'Remarketing_Enterprise', gclid: 'CjwKCAjw_dc_2' }],
+      [
+        touchpoint,
+        { ...touchpoint, utmCampaign: 'Remarketing_Enterprise', gclid: 'CjwKCAjw_dc_2' },
+      ],
       1850000,
       'linear',
     );

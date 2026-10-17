@@ -15,10 +15,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "pnpm --filter @dcfoundry/db db:generate",
-    "db:migrate": "pnpm --filter @dcfoundry/db db:migrate",
-    "db:seed": "pnpm --filter @dcfoundry/db db:seed",
+    "db:migrate": "node --env-file=.env --import tsx packages/db/src/migrate.ts",
+    "db:seed": "node --env-file=.env --import tsx packages/db/src/seed.ts",
     "docker:up": "docker compose -f infra/docker-compose.yml up -d",
-    "docker:down": "docker compose -f infra/docker-compose.yml down"
+    "docker:down": "docker compose -f infra/docker-compose.yml down",
+    "db:reset-data": "node --env-file=.env --import tsx packages/db/src/reset-data.ts",
+    "db:admin": "node --env-file=.env --import tsx apps/api/src/bootstrap-admin.ts"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",

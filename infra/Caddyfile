@@ -1,13 +1,12 @@
 {
   admin off
-  auto_https disable_redirects
 }
 
-:80 {
+{$CRM_DOMAIN:localhost} {
   encode zstd gzip
 
   header {
-    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    Strict-Transport-Security "max-age=15552000"
     X-Content-Type-Options "nosniff"
     X-Frame-Options "DENY"
     Referrer-Policy "strict-origin-when-cross-origin"

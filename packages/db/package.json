@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate.ts",
-    "db:seed": "tsx src/seed.ts"
+    "db:seed": "tsx src/seed.ts",
+    "db:reset-data": "tsx src/reset-data.ts"
   },
   "dependencies": {
     "@dcfoundry/shared": "workspace:*",

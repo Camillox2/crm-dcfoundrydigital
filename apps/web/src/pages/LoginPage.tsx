@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Briefcase, Terminal, Sun, Moon, ArrowRight } from 'lucide-react';
-import { FoundryArchitectureArt, Button, Card, DcLogo, Badge, Mark, useTheme } from '@dcfoundry/ui';
+import { ShieldCheck, Sun, Moon, ArrowRight } from 'lucide-react';
+import { Button, DcLogo, Mark, useTheme } from '@dcfoundry/ui';
 import type { RoleName } from '@dcfoundry/shared';
 import { WorkspaceArt } from '../components/WorkspaceArt.js';
 
@@ -12,6 +12,7 @@ export interface AuthenticatedSession {
   roles: RoleName[];
   teamId: string;
   accessToken?: string;
+  preview?: boolean;
 }
 
 export interface LoginPageProps {
@@ -20,37 +21,17 @@ export interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
   const { theme, toggleTheme } = useTheme();
-  const [email, setEmail] = useState('vitor@dcfoundrydigital.com');
-  const [password, setPassword] = useState('DcFoundry#2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
-  const [selectedRole, setSelectedRole] = useState<RoleName>('admin');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const fillPreset = (preset: 'admin' | 'vendedor' | 'logistica') => {
-    setError(null);
-    if (preset === 'admin') {
-      setEmail('vitor@dcfoundrydigital.com');
-      setPassword('DcFoundry#2026');
-      setSelectedRole('admin');
-    } else if (preset === 'vendedor') {
-      setEmail('vendedor@dcfoundrydigital.com');
-      setPassword('Vendedor#2026');
-      setSelectedRole('vendedor');
-    } else {
-      setEmail('logistica@dcfoundrydigital.com');
-      setPassword('Logistica#2026');
-      setSelectedRole('logistica');
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
-
+    setError(null);
     try {
-      const res = await fetch('/api/v1/auth/login', {
+      const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -59,43 +40,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
           totpCode: totpCode.trim() || undefined,
         }),
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        onAuthenticated({
-          userId: data.user.id,
-          fullName: data.user.fullName,
-          email: data.user.email,
-          roles: data.user.roles,
-          teamId: data.user.teamId ?? 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-          accessToken: data.accessToken,
-        });
-        return;
-      }
-
-      if (res.status === 401 || res.status === 400) {
+      if (!response.ok) {
         setError(
-          'Credenciais inválidas. Selecione um dos perfis rápidos abaixo ou verifique a senha.',
+          response.status === 503
+            ? 'Configure o banco e o administrador no servidor para entrar.'
+            : response.status === 401 || response.status === 400
+              ? 'E-mail ou senha inválidos.'
+              : 'Não foi possível entrar. Tente novamente.',
         );
-        setLoading(false);
         return;
       }
+      const data = await response.json();
+      if (!data.accessToken || !data.user?.id)
+        throw new Error('Resposta de autenticação inválida.');
+      onAuthenticated({
+        userId: data.user.id,
+        fullName: data.user.fullName,
+        email: data.user.email,
+        roles: data.user.roles,
+        teamId: data.user.teamId ?? '',
+        accessToken: data.accessToken,
+      });
     } catch {
-      // Fallback local caso a API esteja reiniciando
+      setError('A API não está disponível. Confira o servidor e tente novamente.');
+    } finally {
+      setLoading(false);
     }
-
-    onAuthenticated({
-      userId: '11111111-1111-4111-8111-111111111111',
-      fullName:
-        selectedRole === 'admin'
-          ? 'Vitor Henrique Camillo'
-          : selectedRole === 'vendedor'
-            ? 'Lucas Consultor Comercial'
-            : 'Marcos Tech Lead & Ops',
-      email,
-      roles: [selectedRole],
-      teamId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    });
   };
 
   return (
@@ -140,32 +110,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
         >
           <h2>Bom ter você por aqui.</h2>
           <p>Entre para acompanhar as conversas e dar vida aos próximos projetos.</p>
-          <div className="login-presets" aria-label="Perfis de demonstração">
-            <button
-              type="button"
-              aria-pressed={selectedRole === 'admin'}
-              onClick={() => fillPreset('admin')}
-            >
-              <ShieldCheck size={14} />
-              Admin
-            </button>
-            <button
-              type="button"
-              aria-pressed={selectedRole === 'vendedor'}
-              onClick={() => fillPreset('vendedor')}
-            >
-              <Briefcase size={14} />
-              Comercial
-            </button>
-            <button
-              type="button"
-              aria-pressed={selectedRole === 'logistica'}
-              onClick={() => fillPreset('logistica')}
-            >
-              <Terminal size={14} />
-              Operações
-            </button>
-          </div>
           {error && (
             <div className="login-error" role="alert">
               {error}
@@ -205,29 +149,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
                   placeholder="000000"
                 />
               </label>
-              <label>
-                Perfil da demonstração
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as RoleName)}
-                >
-                  <option value="admin">Admin</option>
-                  <option value="gestor">Gestor</option>
-                  <option value="vendedor">Comercial</option>
-                  <option value="atendente">Atendimento</option>
-                  <option value="financeiro">Financeiro</option>
-                  <option value="logistica">Operações</option>
-                  <option value="marketing">Marketing & Ads</option>
-                </select>
-              </label>
             </div>
             <Button type="submit" size="lg" disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar no workspace'}
               <ArrowRight size={17} />
             </Button>
           </form>
+          {import.meta.env.DEV && (
+            <button
+              type="button"
+              className="local-preview-button"
+              onClick={() =>
+                onAuthenticated({
+                  userId: 'local-preview',
+                  fullName: 'Prévia local',
+                  email: '',
+                  roles: [],
+                  teamId: '',
+                  preview: true,
+                })
+              }
+            >
+              Visualizar interface local <ArrowRight size={15} />
+            </button>
+          )}
         </motion.div>
-        <p className="login-footer">Ambiente de demonstração · DC Foundry Digital CRM</p>
+        <p className="login-footer">DC Foundry Digital CRM · Acesso ao seu workspace</p>
       </section>
     </div>
   );

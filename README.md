@@ -1,49 +1,40 @@
 # DC Foundry Digital CRM
 
-Plataforma corporativa completa de **CRM Comercial, Propostas e Contratos de Engenharia de Software & Squads Dedicadas, Atendimento WhatsApp Multi-Sessão com Agente de IA RAG (`pgvector`) e Atribuição de Marketing Google Ads (Conversões Offline)**.
+Workspace com a identidade do site DC Foundry Digital: azul, ondas suaves, Foundry original, vetores animados e navegação responsiva.
 
-Desenvolvido por **Vitor Henrique Camillo — DC Foundry Digital** (`dcfoundrydigital.com`).
+## Nesta revisão
 
----
+- Visão geral sem dados fictícios, com indicadores derivados das oportunidades cadastradas.
+- Cadastro, leitura e avanço de oportunidades pela API, com persistência PostgreSQL e escopo de acesso por usuário/equipe.
+- Foundry flutuante com prioridades baseadas no funil, atalhos, pausa e sugestões que podem ser silenciadas.
+- Avatares com foto quando a integração Baileys fornecer uma URL disponível; fallback para iniciais.
+- Marketing & Ads aguardando o script que será configurado depois.
+- Login sem contas/senhas de demonstração ou entrada automática quando a API falha.
+- Migrações e seed de configuração sem clientes, contratos, faturas ou artigos de exemplo.
 
-## Arquitetura do Monorepo
+## Prévia local
 
-```text
-crm-dcfoundrydigital/
-├─ apps/
-│  ├─ web/            # React 19 + Vite 6 + Framer Motion + Lucide SVG (PWA Responsivo)
-│  ├─ api/            # Node 22 + Fastify 5 + Socket.IO + RBAC + Audit Log Imutável
-│  └─ worker/         # Baileys Multi-Sessão, Agente IA RAG, BullMQ Jobs
-├─ packages/
-│  ├─ db/             # Drizzle ORM + PostgreSQL 16 + pgvector + btree_gist + Operações & Migração
-│  ├─ ui/             # Design System DC Foundry Digital (Tokens, DcLogo, FoundryArchitectureArt)
-│  ├─ shared/         # Matriz RBAC (7 papéis + own/team/all), AES-256-GCM LGPD, Zod Schemas
-│  ├─ ai/             # Motor de Qualificação, Horário Comercial, RAG 768-d e Handoff Humano
-│  └─ tracking/       # Captura UTM/gclid/gbraid/wbraid e Google Ads Offline Conversions
-├─ infra/             # Docker Compose otimizado para VPS 1 vCPU / 4 GB RAM + Caddy HTTPS
-├─ docs/              # ADRs e Manual de Conformidade LGPD
-└─ tests/             # Suíte automatizada Vitest cobrindo todas as 7 fases
+```sh
+corepack pnpm install --frozen-lockfile
+corepack pnpm --filter @dcfoundry/web dev --host 127.0.0.1 --port 5175
 ```
 
-## Credenciais de Demonstração (Ambiente Local)
+Em desenvolvimento, o login oferece **Visualizar interface local**. Esse modo não cria uma sessão de API e não salva dados. O botão é excluído do build de produção. A API de desenvolvimento usa a porta 4001; pode configurar `CRM_API_URL` para outro backend.
 
-| Perfil RBAC | E-mail | Senha | Permissões Principais |
-|---|---|---|---|
-| **Admin (Total)** | `vitor@dcfoundrydigital.com` | `DcFoundry#2026` | Acesso total (`all`) a Contratos, Financeiro, Marketing Ads, Audit Log e IA |
-| **Vendedor** | `vendedor@dcfoundrydigital.com` | `Vendedor#2026` | Escopo `own` em Leads e Propostas (`contract:approve` bloqueado com 403) |
-| **Operações / Delivery** | `logistica@dcfoundrydigital.com` | `Logistica#2026` | Gestão de Alocação de Squads, Ambientes Cloud e Sprints |
+## VPS e banco limpo
 
-## Como Rodar Localmente
+Siga [docs/VPS.md](docs/VPS.md) para configurar domínio, segredos, banco e o primeiro administrador. O seed inicializa apenas papéis e etapas comerciais. O reset de dados existentes exige identificação exata do banco e backup antes de limpar; não roda no deploy nem automaticamente ao iniciar.
 
-```bash
-# 1. Instalar dependências
-corepack pnpm install
+## Integrações que ainda exigem configuração
 
-# 2. Rodar testes automatizados e verificação de tipos
-corepack pnpm test
+Pareamento do worker Baileys, script do Ads, IA generativa, blog, pagamentos e assinatura de contratos precisam de suas respectivas integrações. As telas indicam esses estados. O adaptador de fotos do WhatsApp está em `apps/worker/src/contact-photos.ts`; ele deve ser associado a uma sessão já pareada e aos contatos autorizados.
+
+## Validação
+
+```sh
 corepack pnpm -r run typecheck
-
-# 3. Iniciar API (http://localhost:4000) e Web (http://localhost:5173)
-corepack pnpm --filter @dcfoundry/api dev
-corepack pnpm --filter @dcfoundry/web dev
+corepack pnpm test
+corepack pnpm --filter @dcfoundry/web build
 ```
+
+O CI usa um PostgreSQL descartável com pgvector para testar migrações, seed vazio, persistência, acesso por proprietário e reset com backup. Também verifica o container da API e a configuração do Caddy. Instalação e provedores do seu VPS devem ser conferidos após a configuração real.
