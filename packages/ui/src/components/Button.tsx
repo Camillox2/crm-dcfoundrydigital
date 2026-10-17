@@ -20,6 +20,7 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   style,
   disabled,
+  className = '',
   ...rest
 }) => {
   const [ripples, setRipples] = useState<RippleItem[]>([]);
@@ -78,13 +79,26 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const sizeStyles: Record<NonNullable<ButtonProps['size']>, React.CSSProperties> = {
-    sm: { padding: '7px 14px', fontSize: 'var(--text-xs)', borderRadius: 'var(--radius-sm)' },
-    md: { padding: '10px 18px', fontSize: 'var(--text-sm)', borderRadius: 'var(--radius-sm)' },
-    lg: { padding: '13px 24px', fontSize: 'var(--text-base)', borderRadius: 'var(--radius-md)' },
+    sm: {
+      padding: '7px 14px',
+      fontSize: 'var(--text-xs)',
+      borderRadius: 'var(--radius-sm)',
+    },
+    md: {
+      padding: '10px 18px',
+      fontSize: 'var(--text-sm)',
+      borderRadius: 'var(--radius-sm)',
+    },
+    lg: {
+      padding: '13px 24px',
+      fontSize: 'var(--text-base)',
+      borderRadius: 'var(--radius-md)',
+    },
   };
 
   return (
     <button
+      className={`dcf-button dcf-button-${variant} dcf-button-${size} ${className}`}
       onClick={handleClick}
       disabled={disabled}
       style={{
@@ -98,7 +112,8 @@ export const Button: React.FC<ButtonProps> = ({
         fontWeight: 700,
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.6 : 1,
-        transition: 'transform 160ms cubic-bezier(0.22, 1, 0.36, 1), background-color 160ms ease, box-shadow 200ms ease',
+        transition:
+          'transform 160ms cubic-bezier(0.22, 1, 0.36, 1), background-color 160ms ease, box-shadow 200ms ease',
         ...variantStyles[variant],
         ...sizeStyles[size],
         ...style,
@@ -122,7 +137,15 @@ export const Button: React.FC<ButtonProps> = ({
           }}
         />
       ))}
-      <span style={{ position: 'relative', zIndex: 1, display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+      <span
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}
+      >
         {children}
       </span>
     </button>

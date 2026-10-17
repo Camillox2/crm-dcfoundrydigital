@@ -8,6 +8,7 @@ export const Card: React.FC<CardProps> = ({
   tone = 'default',
   children,
   style,
+  className = '',
   ...rest
 }) => {
   const toneMap: Record<NonNullable<CardProps['tone']>, React.CSSProperties> = {
@@ -30,6 +31,7 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <div
+      className={`dcf-card dcf-card-${tone} ${className}`}
       style={{
         borderRadius: 'var(--radius-md)',
         padding: 'var(--space-6)',

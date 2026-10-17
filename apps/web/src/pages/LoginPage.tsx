@@ -1,28 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  ShieldCheck,
-  Briefcase,
-  Terminal,
-  Sun,
-  Moon,
-  Lock,
-  Mail,
-  KeyRound,
-  ArrowRight,
-  Cpu,
-  Activity,
-} from 'lucide-react';
-import {
-  FoundryArchitectureArt,
-  Button,
-  Card,
-  DcLogo,
-  Badge,
-  Mark,
-  useTheme,
-} from '@dcfoundry/ui';
+import { ShieldCheck, Briefcase, Terminal, Sun, Moon, ArrowRight } from 'lucide-react';
+import { FoundryArchitectureArt, Button, Card, DcLogo, Badge, Mark, useTheme } from '@dcfoundry/ui';
 import type { RoleName } from '@dcfoundry/shared';
+import { WorkspaceArt } from '../components/WorkspaceArt.js';
 
 export interface AuthenticatedSession {
   userId: string;
@@ -93,7 +74,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
       }
 
       if (res.status === 401 || res.status === 400) {
-        setError('Credenciais inválidas. Selecione um dos perfis rápidos abaixo ou verifique a senha.');
+        setError(
+          'Credenciais inválidas. Selecione um dos perfis rápidos abaixo ou verifique a senha.',
+        );
         setLoading(false);
         return;
       }
@@ -116,337 +99,135 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onAuthenticated }) => {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100dvh',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-        backgroundColor: 'var(--bg-page)',
-      }}
-    >
-      {/* Painel Esquerdo: Hero Deep Navy + Arquitetura Vetorial DC Foundry Digital */}
-      <section
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          background: 'var(--hero-gradient)',
-          color: '#FFFFFF',
-          padding: '48px 56px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1 }}>
-          <DcLogo size={44} subtitle="CRM & Revenue OS" />
-          <Badge tone="teal">
-            <Cpu size={13} /> Arquitetura v2.0
-          </Badge>
-        </div>
-
+    <div className="crm-login">
+      <section className="login-story">
+        <DcLogo size={34} subtitle="CRM" />
         <motion.div
-          initial={{ opacity: 0, y: 18 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          style={{ margin: '36px 0', zIndex: 1 }}
+          transition={{ duration: 0.4 }}
         >
-          <FoundryArchitectureArt
-            style={{ width: '100%', maxWidth: 520, margin: '0 auto 32px', display: 'block' }}
-          />
-
-          <h1
-            className="serif-editorial"
-            style={{
-              fontSize: 'clamp(1.9rem, 2.6vw, 2.65rem)',
-              lineHeight: 1.14,
-              marginBottom: '16px',
-              color: '#FFFDF9',
-            }}
-          >
-            Engenharia comercial e <Mark>atribuição ponta a ponta.</Mark>
+          <h1>
+            Boas ideias.
+            <br />
+            <Mark>Grandes conexões.</Mark>
           </h1>
-          <p
-            style={{
-              color: '#DCE9F8',
-              fontSize: '0.95rem',
-              lineHeight: 1.7,
-              maxWidth: '52ch',
-              margin: 0,
-            }}
-          >
-            Pipeline comercial, WhatsApp multi-sessão com Agente de IA RAG (pgvector),
-            propostas e contratos com assinatura digital e upload de conversões offline
-            para o Google Ads.
-          </p>
+          <p>Negócios, conversas e projetos. Um lugar para conectar cada próximo passo.</p>
+          <WorkspaceArt />
         </motion.div>
-
-        <div
-          style={{
-            display: 'flex',
-            gap: '28px',
-            flexWrap: 'wrap',
-            fontSize: '0.78rem',
-            color: '#93A8C1',
-            zIndex: 1,
-          }}
-        >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <ShieldCheck size={14} color="#14B8A6" /> Criptografia AES-256-GCM (LGPD)
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Activity size={14} color="#3B82F6" /> SLA IA &lt; 10s (Gemini + Ollama)
-          </span>
+        <div className="login-story-footer">
+          <ShieldCheck size={15} />
+          Seu workspace DC Foundry Digital.
         </div>
       </section>
-
-      {/* Painel Direito: Formulário de Autenticação Espaçoso */}
-      <section
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          padding: '40px 48px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-            dcfoundrydigital.com
-          </span>
-          <Button variant="outline" size="sm" onClick={() => toggleTheme()}>
-            {theme === 'light' ? (
-              <>
-                <Moon size={14} /> Modo Escuro
-              </>
-            ) : (
-              <>
-                <Sun size={14} /> Modo Claro
-              </>
-            )}
-          </Button>
+      <section className="login-panel">
+        <div className="login-topbar">
+          <span>dcfoundrydigital.com</span>
+          <button
+            className="icon-button"
+            type="button"
+            onClick={() => toggleTheme()}
+            aria-label={theme === 'light' ? 'Ativar tema escuro' : 'Ativar tema claro'}
+          >
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
         </div>
-
         <motion.div
-          initial={{ opacity: 0, scale: 0.98, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-          style={{ width: '100%', maxWidth: 460, margin: '32px auto' }}
+          className="login-form-wrap"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.1 }}
         >
-          <Card style={{ padding: '36px' }}>
-            <div style={{ marginBottom: '28px' }}>
-              <DcLogo size={36} subtitle="Acesso Corporativo RBAC" />
-              <h2
-                className="serif-editorial"
-                style={{
-                  fontSize: '1.8rem',
-                  marginTop: '20px',
-                  marginBottom: '6px',
-                }}
-              >
-                Acessar Plataforma
-              </h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0, lineHeight: 1.5 }}>
-                Selecione um perfil de demonstração rápida ou autentique-se com suas credenciais:
-              </p>
-            </div>
-
-            {/* Seletor Rápido de Perfis (100% SVG, sem emojis) */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '10px',
-                marginBottom: '24px',
-                padding: '6px',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--bg-subtle)',
-                border: '1px solid var(--border-default)',
-              }}
+          <h2>Bom ter você por aqui.</h2>
+          <p>Entre para acompanhar as conversas e dar vida aos próximos projetos.</p>
+          <div className="login-presets" aria-label="Perfis de demonstração">
+            <button
+              type="button"
+              aria-pressed={selectedRole === 'admin'}
+              onClick={() => fillPreset('admin')}
             >
-              <Button
-                type="button"
-                variant={selectedRole === 'admin' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => fillPreset('admin')}
-              >
-                <ShieldCheck size={14} /> Admin
-              </Button>
-              <Button
-                type="button"
-                variant={selectedRole === 'vendedor' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => fillPreset('vendedor')}
-              >
-                <Briefcase size={14} /> Comercial
-              </Button>
-              <Button
-                type="button"
-                variant={selectedRole === 'logistica' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => fillPreset('logistica')}
-              >
-                <Terminal size={14} /> Operações
-              </Button>
-            </div>
-
-            {error && (
-              <div
-                role="alert"
-                style={{
-                  padding: '12px 14px',
-                  marginBottom: '20px',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: '#FEE2E2',
-                  color: '#991B1B',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            <form
-              onSubmit={handleSubmit}
-              style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}
+              <ShieldCheck size={14} />
+              Admin
+            </button>
+            <button
+              type="button"
+              aria-pressed={selectedRole === 'vendedor'}
+              onClick={() => fillPreset('vendedor')}
             >
-              <label
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Mail size={13} /> E-mail Corporativo
-                </span>
+              <Briefcase size={14} />
+              Comercial
+            </button>
+            <button
+              type="button"
+              aria-pressed={selectedRole === 'logistica'}
+              onClick={() => fillPreset('logistica')}
+            >
+              <Terminal size={14} />
+              Operações
+            </button>
+          </div>
+          {error && (
+            <div className="login-error" role="alert">
+              {error}
+            </div>
+          )}
+          <form className="login-form" onSubmit={handleSubmit}>
+            <label>
+              E-mail corporativo
+              <input
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Senha
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </label>
+            <div className="login-form-secondary">
+              <label>
+                Código 2FA · opcional
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-strong)',
-                    backgroundColor: 'var(--bg-page)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.92rem',
-                  }}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value)}
+                  placeholder="000000"
                 />
               </label>
-
-              <label
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Lock size={13} /> Senha
-                </span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-strong)',
-                    backgroundColor: 'var(--bg-page)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.92rem',
-                  }}
-                />
+              <label>
+                Perfil da demonstração
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as RoleName)}
+                >
+                  <option value="admin">Admin</option>
+                  <option value="gestor">Gestor</option>
+                  <option value="vendedor">Comercial</option>
+                  <option value="atendente">Atendimento</option>
+                  <option value="financeiro">Financeiro</option>
+                  <option value="logistica">Operações</option>
+                  <option value="marketing">Marketing & Ads</option>
+                </select>
               </label>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <label
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <KeyRound size={13} /> Código 2FA (Opcional)
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="000000"
-                    maxLength={6}
-                    value={totpCode}
-                    onChange={(e) => setTotpCode(e.target.value)}
-                    style={{
-                      padding: '11px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-strong)',
-                      backgroundColor: 'var(--bg-page)',
-                      color: 'var(--text-primary)',
-                    }}
-                  />
-                </label>
-
-                <label
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <ShieldCheck size={13} /> Papel RBAC
-                  </span>
-                  <select
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value as RoleName)}
-                    style={{
-                      padding: '11px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-strong)',
-                      backgroundColor: 'var(--bg-page)',
-                      color: 'var(--text-primary)',
-                    }}
-                  >
-                    <option value="admin">Admin (Total)</option>
-                    <option value="gestor">Gestor</option>
-                    <option value="vendedor">Comercial / Vendedor</option>
-                    <option value="atendente">Atendente / SDR</option>
-                    <option value="financeiro">Financeiro</option>
-                    <option value="logistica">Operações / Tech</option>
-                    <option value="marketing">Marketing & Ads</option>
-                  </select>
-                </label>
-              </div>
-
-              <Button type="submit" size="lg" disabled={loading} style={{ marginTop: '8px' }}>
-                {loading ? 'Autenticando...' : 'Entrar no DC Foundry Digital CRM'}
-                <ArrowRight size={16} />
-              </Button>
-            </form>
-          </Card>
+            </div>
+            <Button type="submit" size="lg" disabled={loading}>
+              {loading ? 'Entrando...' : 'Entrar no workspace'}
+              <ArrowRight size={17} />
+            </Button>
+          </form>
         </motion.div>
-
-        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          DC Foundry Digital CRM • Sessão protegida com JWT + Refresh httpOnly
-        </div>
+        <p className="login-footer">Ambiente de demonstração · DC Foundry Digital CRM</p>
       </section>
     </div>
   );

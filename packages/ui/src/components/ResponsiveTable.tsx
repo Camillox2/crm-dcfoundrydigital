@@ -17,7 +17,7 @@ export interface ResponsiveTableProps<T> {
  */
 export function ResponsiveTable<T>({ columns, data, rowKey }: ResponsiveTableProps<T>) {
   return (
-    <div>
+    <div className="dcf-responsive-table">
       {/* Visão Desktop: Tabela */}
       <div className="dcf-table-desktop" style={{ overflowX: 'auto' }}>
         <table

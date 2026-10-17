@@ -7,3 +7,4 @@ export * from './components/Skeleton.js';
 export * from './components/AnimatedCounter.js';
 export * from './components/BedArt.js';
 export * from './components/ResponsiveTable.js';
+export * from './components/FoundryMascot.js';

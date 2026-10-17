@@ -5,7 +5,6 @@ import {
   KanbanSquare,
   MessageSquare,
   Cpu,
-  Layers,
   CreditCard,
   TrendingUp,
   ShieldCheck,
@@ -23,7 +22,6 @@ import {
   Plus,
   QrCode,
   ArrowRight,
-  Clock,
   Database,
   Send,
   Filter,
@@ -33,18 +31,16 @@ import {
   Check,
   AlertTriangle,
   BookOpen,
+  Menu,
+  Home,
+  ChevronRight,
 } from 'lucide-react';
 import {
-  AnimatedCounter,
   Badge,
-  FoundryArchitectureArt,
   Button,
   Card,
   ContractSignedArt,
   DcLogo,
-  DeliveryArt,
-  KpiCardSkeleton,
-  Mark,
   ResponsiveTable,
   TableListSkeleton,
   useTheme,
@@ -58,12 +54,15 @@ import {
 import {
   calculateCampaignRoiMetrics,
   calculateAttributionShares,
-  decorateWhatsAppLinkWithTrackingCode,
   type AttributionModel,
 } from '@dcfoundry/tracking';
 import { PermissionGate } from './components/PermissionGate.js';
 import { LoginPage, type AuthenticatedSession } from './pages/LoginPage.js';
 import '@dcfoundry/ui/tokens.css';
+import './workspace.css';
+import { Overview } from './components/Overview.js';
+import { ModuleIntro } from './components/ModuleIntro.js';
+import { useDialogFocus } from './components/useDialogFocus.js';
 
 type NavTabId =
   | 'dashboard'
@@ -194,12 +193,16 @@ export const App: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [simulatingSkeleton, setSimulatingSkeleton] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [signingModalOpen, setSigningModalOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [contractSignedSuccess, setContractSignedSuccess] = useState(false);
   const [aiPausedForContact, setAiPausedForContact] = useState(false);
   const [leads, setLeads] = useState<KanbanLeadCard[]>(INITIAL_LEADS);
   const [selectedLead, setSelectedLead] = useState<KanbanLeadCard | null>(null);
+  useDialogFocus(mobileMenuOpen || commandOpen || Boolean(selectedLead));
   const [attributionModel, setAttributionModel] = useState<AttributionModel>('last_touch');
   const [copiedPix, setCopiedPix] = useState(false);
 
@@ -227,12 +230,18 @@ export const App: React.FC = () => {
   const [migrationExecuted, setMigrationExecuted] = useState(false);
 
   useEffect(() => {
+    document.getElementById('workspace-main')?.scrollTo({ top: 0 });
+  }, [activeTab]);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setCommandOpen((prev) => !prev);
       } else if (e.key === 'Escape') {
         setCommandOpen(false);
+        setMobileMenuOpen(false);
+        setAccountOpen(false);
         setSigningModalOpen(false);
         setQrModalOpen(false);
         setSelectedLead(null);
@@ -256,27 +265,37 @@ export const App: React.FC = () => {
     }>;
   }> = [
     {
-      groupTitle: 'Comercial & Operação',
+      groupTitle: 'Comercial',
       items: [
-        { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
-        { id: 'kanban', label: 'Funil & Leads', badge: `${leads.length}`, icon: KanbanSquare },
-        { id: 'contracts', label: 'Propostas & Contratos', badge: '3 ativos', icon: FileSignature },
-        { id: 'finance', label: 'Financeiro & Pix', icon: CreditCard },
+        { id: 'dashboard', label: 'Visão geral', icon: LayoutDashboard },
+        {
+          id: 'kanban',
+          label: 'Funil & leads',
+          badge: `${leads.length}`,
+          icon: KanbanSquare,
+        },
+        {
+          id: 'contracts',
+          label: 'Propostas & contratos',
+          badge: '3 ativos',
+          icon: FileSignature,
+        },
+        { id: 'finance', label: 'Financeiro', icon: CreditCard },
       ],
     },
     {
-      groupTitle: 'Atendimento & IA',
+      groupTitle: 'Atendimento',
       items: [
-        { id: 'whatsapp', label: 'Inbox WhatsApp', badge: '3.8s', icon: MessageSquare },
-        { id: 'ai_console', label: 'Console IA & RAG', badge: `v${promptVersion}`, icon: Cpu },
+        { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
+        { id: 'ai_console', label: 'Foundry IA', icon: Cpu },
       ],
     },
     {
-      groupTitle: 'Growth & Governança',
+      groupTitle: 'Gestão',
       items: [
-        { id: 'marketing', label: 'Google Ads & ROI', badge: '6.8x', icon: TrendingUp },
-        { id: 'blog', label: 'Blog & SEO', icon: BookOpen },
-        { id: 'audit', label: 'Auditoria, RBAC & LGPD', icon: ShieldCheck },
+        { id: 'marketing', label: 'Marketing & Ads', icon: TrendingUp },
+        { id: 'blog', label: 'Blog & conteúdo', icon: BookOpen },
+        { id: 'audit', label: 'Auditoria', icon: ShieldCheck },
       ],
     },
   ];
@@ -363,6 +382,8 @@ export const App: React.FC = () => {
 
   return (
     <div
+      className="crm-shell"
+      data-collapsed={sidebarCollapsed}
       style={{
         height: '100dvh',
         overflow: 'hidden',
@@ -373,7 +394,7 @@ export const App: React.FC = () => {
     >
       {/* SIDEBAR DESKTOP COLAPSÁVEL (Navy-950 + Pílula Deslizante Framer Motion) */}
       <aside
-        className="dcf-desktop-only"
+        className="dcf-desktop-only crm-sidebar"
         style={{
           width: sidebarCollapsed ? 84 : 268,
           height: '100dvh',
@@ -398,7 +419,7 @@ export const App: React.FC = () => {
               padding: '0 4px',
             }}
           >
-            <DcLogo size={36} showText={!sidebarCollapsed} subtitle="CRM & Revenue OS" />
+            <DcLogo size={32} showText={!sidebarCollapsed} subtitle="CRM" />
             <button
               onClick={() => setSidebarCollapsed((c) => !c)}
               aria-label={sidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
@@ -419,7 +440,11 @@ export const App: React.FC = () => {
           {/* Botão Busca Global Ctrl+K */}
           {!sidebarCollapsed && (
             <button
-              onClick={() => setCommandOpen(true)}
+              className="sidebar-search"
+              onClick={() => {
+                setCommandQuery('');
+                setCommandOpen(true);
+              }}
               style={{
                 width: '100%',
                 display: 'flex',
@@ -435,7 +460,13 @@ export const App: React.FC = () => {
                 fontSize: '0.8rem',
               }}
             >
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
                 <Search size={14} /> Buscar no CRM...
               </span>
               <kbd
@@ -456,7 +487,7 @@ export const App: React.FC = () => {
           {/* Grupos de Navegação */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {navGroups.map((group) => (
-              <div key={group.groupTitle}>
+              <div className="sidebar-group" key={group.groupTitle}>
                 {!sidebarCollapsed && (
                   <div
                     style={{
@@ -471,13 +502,19 @@ export const App: React.FC = () => {
                     {group.groupTitle}
                   </div>
                 )}
-                <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <nav
+                  aria-label={group.groupTitle}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                >
                   {group.items.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
                     return (
                       <button
                         key={item.id}
+                        className="sidebar-nav-item"
+                        aria-current={isActive ? 'page' : undefined}
+                        title={item.label}
                         onClick={() => setActiveTab(item.id)}
                         style={{
                           position: 'relative',
@@ -499,8 +536,13 @@ export const App: React.FC = () => {
                       >
                         {isActive && (
                           <motion.span
+                            className="sidebar-glider"
                             layoutId="sidebar-glider"
-                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                            transition={{
+                              type: 'spring',
+                              stiffness: 380,
+                              damping: 30,
+                            }}
                             style={{
                               position: 'absolute',
                               inset: 0,
@@ -511,11 +553,23 @@ export const App: React.FC = () => {
                             }}
                           />
                         )}
-                        <span style={{ position: 'relative', zIndex: 1, display: 'inline-flex' }}>
+                        <span
+                          style={{
+                            position: 'relative',
+                            zIndex: 1,
+                            display: 'inline-flex',
+                          }}
+                        >
                           <Icon size={17} />
                         </span>
                         {!sidebarCollapsed && (
-                          <span style={{ position: 'relative', zIndex: 1, flex: 1 }}>
+                          <span
+                            style={{
+                              position: 'relative',
+                              zIndex: 1,
+                              flex: 1,
+                            }}
+                          >
                             {item.label}
                           </span>
                         )}
@@ -549,6 +603,7 @@ export const App: React.FC = () => {
 
         {/* Rodapé da Sidebar */}
         <div
+          className="sidebar-profile"
           style={{
             padding: '12px 14px',
             borderRadius: 'var(--radius-sm)',
@@ -558,7 +613,14 @@ export const App: React.FC = () => {
             color: '#DCE9F8',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontWeight: 700,
+            }}
+          >
             <span
               style={{
                 width: 8,
@@ -568,11 +630,14 @@ export const App: React.FC = () => {
                 boxShadow: '0 0 10px #14B8A6',
               }}
             />
-            {!sidebarCollapsed && 'Baileys + IA RAG Online'}
+            {!sidebarCollapsed &&
+              [sessionUser.fullName.split(' ')[0], sessionUser.fullName.split(' ').at(-1)].join(
+                ' ',
+              )}
           </div>
           {!sidebarCollapsed && (
             <div style={{ marginTop: 4, color: '#93A8C1', fontSize: 11 }}>
-              {sessionUser.fullName}
+              Ambiente de demonstração
             </div>
           )}
         </div>
@@ -589,94 +654,111 @@ export const App: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        {/* Topbar Limpa e Elegante */}
-        <header
-          style={{
-            height: 68,
-            flexShrink: 0,
-            backgroundColor: 'var(--bg-card)',
-            borderBottom: '1px solid var(--border-default)',
-            padding: '0 36px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div className="dcf-mobile-only">
-              <DcLogo size={30} showText={false} />
-            </div>
-            <h1
-              className="serif-editorial"
-              style={{ fontSize: '1.45rem', margin: 0, color: 'var(--text-primary)' }}
+        <header className="crm-topbar">
+          <div className="workspace-breadcrumb">
+            <button
+              className="icon-button mobile-menu-trigger"
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Abrir navegação"
+              aria-expanded={mobileMenuOpen}
             >
-              <Mark>{allNavItems.find((n) => n.id === activeTab)?.label}</Mark>
-            </h1>
+              <Menu size={21} />
+            </button>
+            <Home size={16} />
+            <span>Workspace</span>
+            <ChevronRight size={13} />
+            <h1>{allNavItems.find((n) => n.id === activeTab)?.label}</h1>
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Seletor RBAC discreto */}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--bg-subtle)',
-                border: '1px solid var(--border-default)',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                color: 'var(--text-secondary)',
+          <div className="topbar-actions">
+            <span className="demo-indicator">
+              <i />
+              Demonstração
+            </span>
+            <button
+              className="icon-button"
+              type="button"
+              onClick={() => {
+                setCommandQuery('');
+                setCommandOpen(true);
               }}
+              aria-label="Buscar no CRM"
             >
-              <ShieldCheck size={14} color="var(--brand-primary)" />
-              <span>Papel:</span>
-              <select
-                value={sessionUser.roles[0]}
-                onChange={(e) =>
-                  setSessionUser({ ...sessionUser, roles: [e.target.value as RoleName] })
-                }
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-primary)',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  outline: 'none',
-                }}
+              <Search size={18} />
+            </button>
+            <button
+              className="icon-button"
+              type="button"
+              onClick={() => toggleTheme()}
+              aria-label={theme === 'light' ? 'Ativar tema escuro' : 'Ativar tema claro'}
+            >
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+            <div className="account-menu-wrap">
+              <button
+                className="user-avatar"
+                type="button"
+                title="Minha conta"
+                aria-label="Abrir minha conta"
+                aria-expanded={accountOpen}
+                onClick={() => setAccountOpen((value) => !value)}
               >
-                {ROLES.map((r) => (
-                  <option key={r} value={r} style={{ color: '#0B1E33' }}>
-                    {r.toUpperCase()}
-                  </option>
-                ))}
-              </select>
+                {[
+                  sessionUser.fullName.split(' ')[0]?.[0],
+                  sessionUser.fullName.split(' ').at(-1)?.[0],
+                ].join('')}
+              </button>
+              {accountOpen && (
+                <section className="account-menu" aria-label="Minha conta">
+                  <strong>{sessionUser.fullName}</strong>
+                  <span>{sessionUser.email}</span>
+                  <label>
+                    Perfil da demonstração
+                    <select
+                      aria-label="Perfil da demonstração"
+                      value={sessionUser.roles[0]}
+                      onChange={(e) =>
+                        setSessionUser({
+                          ...sessionUser,
+                          roles: [e.target.value as RoleName],
+                        })
+                      }
+                    >
+                      {ROLES.map((role) => (
+                        <option key={role} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="account-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={simulatingSkeleton}
+                      onChange={(e) => setSimulatingSkeleton(e.target.checked)}
+                    />
+                    Visualizar estado de carregamento
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSessionUser(null);
+                      setAccountOpen(false);
+                    }}
+                  >
+                    <LogOut size={15} />
+                    Sair da sessão
+                  </button>
+                </section>
+              )}
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSimulatingSkeleton((s) => !s)}
-            >
-              <Layers size={14} />
-              {simulatingSkeleton ? 'Ocultar Skeletons' : 'Skeletons'}
-            </Button>
-
-            <Button variant="outline" size="sm" onClick={() => toggleTheme()}>
-              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
-              {theme === 'light' ? 'Escuro' : 'Claro'}
-            </Button>
-
-            <Button variant="ghost" size="sm" onClick={() => setSessionUser(null)}>
-              <LogOut size={14} /> Sair
-            </Button>
           </div>
         </header>
 
         {/* Canvas de Conteúdo Rolável e Espaçoso */}
         <main
+          className="crm-main"
+          id="workspace-main"
           style={{
             flex: 1,
             overflowY: 'auto',
@@ -686,311 +768,39 @@ export const App: React.FC = () => {
           <div style={{ maxWidth: 1380, margin: '0 auto' }}>
             <AnimatePresence mode="wait">
               <motion.div
+                className="crm-page"
+                data-page={activeTab}
                 key={activeTab}
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
               >
+                <ModuleIntro page={activeTab} />
                 {/* =========================================================
                     ABA 1: VISÃO GERAL (DASHBOARD EXECUTIVO)
                    ========================================================= */}
                 {activeTab === 'dashboard' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-                    {/* Linha de 4 KPIs Espaçosos */}
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                        gap: '24px',
-                      }}
-                    >
-                      {simulatingSkeleton ? (
-                        <>
-                          <KpiCardSkeleton />
-                          <KpiCardSkeleton />
-                          <KpiCardSkeleton />
-                          <KpiCardSkeleton />
-                        </>
-                      ) : (
-                        <>
-                          <Card style={{ padding: '28px' }}>
-                            <span
-                              style={{
-                                fontSize: '0.74rem',
-                                color: 'var(--text-muted)',
-                                fontWeight: 700,
-                                letterSpacing: '0.06em',
-                              }}
-                            >
-                              RECEITA RECORRENTE (MRR ATIVO)
-                            </span>
-                            <div
-                              style={{
-                                fontSize: '2rem',
-                                margin: '12px 0',
-                                color: 'var(--brand-primary)',
-                              }}
-                            >
-                              <AnimatedCounter
-                                value={64800}
-                                formatter={(v) =>
-                                  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                                }
-                              />
-                            </div>
-                            <Badge tone="teal">
-                              <TrendingUp size={12} /> +24,6% vs mês anterior
-                            </Badge>
-                          </Card>
-
-                          <Card style={{ padding: '28px' }}>
-                            <span
-                              style={{
-                                fontSize: '0.74rem',
-                                color: 'var(--text-muted)',
-                                fontWeight: 700,
-                                letterSpacing: '0.06em',
-                              }}
-                            >
-                              PIPELINE QUALIFICADO PELA IA
-                            </span>
-                            <div style={{ fontSize: '2rem', margin: '12px 0' }}>
-                              <AnimatedCounter
-                                value={184500}
-                                formatter={(v) =>
-                                  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                                }
-                              />
-                            </div>
-                            <Badge tone="sky">14 oportunidades quentes</Badge>
-                          </Card>
-
-                          <Card style={{ padding: '28px' }}>
-                            <span
-                              style={{
-                                fontSize: '0.74rem',
-                                color: 'var(--text-muted)',
-                                fontWeight: 700,
-                                letterSpacing: '0.06em',
-                              }}
-                            >
-                              TEMPO DE 1ª RESPOSTA (IA vs HUMANO)
-                            </span>
-                            <div
-                              style={{
-                                fontSize: '2rem',
-                                margin: '12px 0',
-                                color: 'var(--color-teal-700)',
-                              }}
-                            >
-                              <AnimatedCounter value={3.8} formatter={(v) => `${v.toFixed(1)}s`} />{' '}
-                              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                                vs 4m10s humano
-                              </span>
-                            </div>
-                            <Badge tone="teal">
-                              <Clock size={12} /> SLA &lt; 10s em 99,4% dos leads
-                            </Badge>
-                          </Card>
-
-                          <Card tone="warm" style={{ padding: '28px' }}>
-                            <span
-                              style={{
-                                fontSize: '0.74rem',
-                                color: 'var(--color-ink-soft)',
-                                fontWeight: 700,
-                                letterSpacing: '0.06em',
-                              }}
-                            >
-                              ROAS GOOGLE ADS (OFFLINE UPLOAD)
-                            </span>
-                            <div
-                              style={{
-                                fontSize: '2rem',
-                                margin: '12px 0',
-                                color: 'var(--color-ink)',
-                              }}
-                            >
-                              <AnimatedCounter value={6.8} formatter={(v) => `${v.toFixed(1)}x`} />
-                            </div>
-                            <Badge tone="warm">CPL Qualificado: R$ 89,40</Badge>
-                          </Card>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Segunda Linha: Arquitetura em Tempo Real + Ações RBAC */}
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-                        gap: '24px',
-                      }}
-                    >
-                      <Card
-                        tone="navy"
-                        style={{
-                          padding: '32px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <div>
-                          <Badge tone="teal">
-                            <Cpu size={12} /> Telemetria da Plataforma
-                          </Badge>
-                          <h3
-                            className="serif-editorial"
-                            style={{ fontSize: '1.5rem', margin: '14px 0 8px' }}
-                          >
-                            Fluxo Unificado: Clique Ads → WhatsApp IA → Contrato
-                          </h3>
-                          <p
-                            style={{
-                              fontSize: '0.85rem',
-                              color: '#DCE9F8',
-                              margin: 0,
-                              lineHeight: 1.6,
-                            }}
-                          >
-                            O código curto de rastreio acompanha o visitante desde o anúncio até a
-                            assinatura digital do contrato e retorna a conversão offline via hash
-                            SHA-256 para o Google Ads.
-                          </p>
-                        </div>
-                        <FoundryArchitectureArt
-                          style={{ width: '100%', maxHeight: 210, marginTop: 20 }}
-                        />
-                      </Card>
-
-                      <Card
-                        style={{
-                          padding: '32px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <div>
-                          <Badge tone="sky">
-                            <ShieldCheck size={12} /> Governança & Operação
-                          </Badge>
-                          <h3
-                            className="serif-editorial"
-                            style={{ fontSize: '1.5rem', margin: '14px 0 8px' }}
-                          >
-                            Ações Rápidas Protegidas por RBAC
-                          </h3>
-                          <p
-                            style={{
-                              fontSize: '0.85rem',
-                              color: 'var(--text-muted)',
-                              marginBottom: 20,
-                              lineHeight: 1.6,
-                            }}
-                          >
-                            Alterne o papel ativo no seletor do topo para validar que controles sem
-                            permissão são ocultados na interface pelo <code>PermissionGate</code> e
-                            bloqueados com HTTP 403 na API:
-                          </p>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <PermissionGate
-                              subject={sessionUser}
-                              permission="contract:approve"
-                              fallback={
-                                <Badge tone="danger">
-                                  Bloqueado para {sessionUser.roles[0]}: requer contract:approve
-                                </Badge>
-                              }
-                            >
-                              <Button
-                                variant="teal"
-                                size="md"
-                                onClick={() => setSigningModalOpen(true)}
-                                style={{ justifyContent: 'space-between' }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                  <FileSignature size={16} /> Aprovar & Assinar Contrato Digital (
-                                  <code>contract:approve</code>)
-                                </span>
-                                <ArrowRight size={15} />
-                              </Button>
-                            </PermissionGate>
-
-                            <PermissionGate
-                              subject={sessionUser}
-                              permission="marketing_ads:export"
-                              fallback={
-                                <Badge tone="danger">
-                                  Bloqueado para {sessionUser.roles[0]}: requer marketing_ads:export
-                                </Badge>
-                              }
-                            >
-                              <Button
-                                variant="primary"
-                                size="md"
-                                onClick={() => setActiveTab('marketing')}
-                                style={{ justifyContent: 'space-between' }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                  <TrendingUp size={16} /> Painel de Conversões Offline Google Ads (
-                                  <code>marketing_ads:export</code>)
-                                </span>
-                                <ArrowRight size={15} />
-                              </Button>
-                            </PermissionGate>
-
-                            <PermissionGate
-                              subject={sessionUser}
-                              permission="whatsapp:manage"
-                              fallback={
-                                <Badge tone="danger">
-                                  Bloqueado para {sessionUser.roles[0]}: requer whatsapp:manage
-                                </Badge>
-                              }
-                            >
-                              <Button
-                                variant="outline"
-                                size="md"
-                                onClick={() => setQrModalOpen(true)}
-                                style={{ justifyContent: 'space-between' }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                  <QrCode size={16} /> Parear Nova Sessão WhatsApp Baileys (
-                                  <code>whatsapp:manage</code>)
-                                </span>
-                                <ArrowRight size={15} />
-                              </Button>
-                            </PermissionGate>
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-around',
-                            marginTop: 24,
-                            paddingTop: 20,
-                            borderTop: '1px solid var(--border-default)',
-                          }}
-                        >
-                          <DeliveryArt />
-                          <ContractSignedArt />
-                        </div>
-                      </Card>
-                    </div>
-                  </div>
+                  <Overview
+                    leads={leads}
+                    loading={simulatingSkeleton}
+                    onOpenLead={setSelectedLead}
+                    onNavigate={setActiveTab}
+                  />
                 )}
 
                 {/* =========================================================
                     ABA 2: FUNIL KANBAN & FICHA LATERAL DO LEAD (LEADSHEET)
                    ========================================================= */}
                 {activeTab === 'kanban' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div
+                    className="kanban-page"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '24px',
+                    }}
+                  >
                     <div
                       style={{
                         display: 'flex',
@@ -1001,8 +811,8 @@ export const App: React.FC = () => {
                       }}
                     >
                       <div style={{ display: 'flex', gap: 10 }}>
-                        <Badge tone="teal">Funil Principal: Retainers & Projetos SaaS</Badge>
-                        <Badge tone="sky">Deduplicação E.164 Ativa</Badge>
+                        <Badge tone="teal">Pipeline comercial</Badge>
+                        <Badge tone="sky">Retainers & projetos</Badge>
                       </div>
                       <Button
                         variant="primary"
@@ -1036,16 +846,32 @@ export const App: React.FC = () => {
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+                        gridTemplateColumns: 'repeat(4, minmax(250px, 1fr))',
                         gap: '20px',
                       }}
                     >
                       {(
                         [
-                          { key: 'novo', title: '1. Entrada (WhatsApp / Ads)', sla: 'SLA 10m' },
-                          { key: 'qualificado_ia', title: '2. Qualificado pela IA', sla: 'SLA 20m' },
-                          { key: 'orcamento', title: '3. Proposta Enviada', sla: 'SLA 60m' },
-                          { key: 'contrato_ativo', title: '4. Contrato Fechado', sla: 'Ganho' },
+                          {
+                            key: 'novo',
+                            title: 'Novas oportunidades',
+                            sla: 'SLA 10m',
+                          },
+                          {
+                            key: 'qualificado_ia',
+                            title: 'Qualificados',
+                            sla: 'SLA 20m',
+                          },
+                          {
+                            key: 'orcamento',
+                            title: 'Em proposta',
+                            sla: 'SLA 60m',
+                          },
+                          {
+                            key: 'contrato_ativo',
+                            title: 'Contrato ativo',
+                            sla: 'Ganho',
+                          },
                         ] as const
                       ).map((col) => {
                         const colLeads = leads.filter((l) => l.stage === col.key);
@@ -1057,7 +883,7 @@ export const App: React.FC = () => {
                               border: '1px solid var(--border-default)',
                               borderRadius: 'var(--radius-md)',
                               padding: '20px',
-                              minHeight: 480,
+                              minHeight: 420,
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '16px',
@@ -1091,7 +917,11 @@ export const App: React.FC = () => {
                                   initial={{ opacity: 0, scale: 0.96 }}
                                   animate={{ opacity: 1, scale: 1 }}
                                   exit={{ opacity: 0, scale: 0.92 }}
-                                  transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+                                  transition={{
+                                    type: 'spring',
+                                    stiffness: 360,
+                                    damping: 28,
+                                  }}
                                 >
                                   <Card style={{ padding: '20px' }}>
                                     <div
@@ -1102,9 +932,7 @@ export const App: React.FC = () => {
                                         marginBottom: 10,
                                       }}
                                     >
-                                      <Badge
-                                        tone={lead.temperature === 'Quente' ? 'teal' : 'warm'}
-                                      >
+                                      <Badge tone={lead.temperature === 'Quente' ? 'teal' : 'warm'}>
                                         {lead.temperature} • Score {lead.score}
                                       </Badge>
                                       {lead.highPriority && (
@@ -1112,7 +940,12 @@ export const App: React.FC = () => {
                                       )}
                                     </div>
 
-                                    <h4 style={{ margin: '0 0 4px', fontSize: '0.98rem' }}>
+                                    <h4
+                                      style={{
+                                        margin: '0 0 4px',
+                                        fontSize: '0.98rem',
+                                      }}
+                                    >
                                       {lead.company}
                                     </h4>
                                     <div
@@ -1204,7 +1037,7 @@ export const App: React.FC = () => {
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
                       gap: '24px',
                     }}
                   >
@@ -1223,7 +1056,12 @@ export const App: React.FC = () => {
                           <h3 style={{ margin: 0, fontSize: '1.1rem' }}>
                             Ricardo Vasconcelos — Vortex Fintech
                           </h3>
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          <span
+                            style={{
+                              fontSize: '0.78rem',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
                             +55 11 99812-3401 • Código de Rastreio: <code>[DCF-9F22]</code>
                           </span>
                         </div>
@@ -1258,8 +1096,8 @@ export const App: React.FC = () => {
                           }}
                         >
                           Olá! Vi o anúncio da DC Foundry Digital no Google e precisamos de uma
-                          Squad Full-Stack e um Agente de IA no WhatsApp integrado ao nosso banco
-                          de dados.
+                          Squad Full-Stack e um Agente de IA no WhatsApp integrado ao nosso banco de
+                          dados.
                         </div>
 
                         <div
@@ -1274,14 +1112,21 @@ export const App: React.FC = () => {
                             lineHeight: 1.55,
                           }}
                         >
-                          <div style={{ fontSize: 11, opacity: 0.85, marginBottom: 6 }}>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              opacity: 0.85,
+                              marginBottom: 6,
+                            }}
+                          >
                             Assistente IA • DC Foundry Digital CRM (Fonte RAG:{' '}
                             <code>doc_catalogo_dcf#chunk_0</code>)
                           </div>
                           Olá, Ricardo! Temos disponibilidade imediata para alocar a{' '}
                           <strong>Squad Alpha Full-Stack & IA</strong> (Retainer de R$ 12.500/mês)
-                          ou implementar o <strong>Agente Autônomo WhatsApp com RAG pgvector</strong>{' '}
-                          (R$ 2.900/mês). Posso gerar o link da proposta técnica agora?
+                          ou implementar o{' '}
+                          <strong>Agente Autônomo WhatsApp com RAG pgvector</strong> (R$ 2.900/mês).
+                          Posso gerar o link da proposta técnica agora?
                         </div>
 
                         {!aiPausedForContact && (
@@ -1297,7 +1142,8 @@ export const App: React.FC = () => {
                           >
                             <Sparkles size={14} /> Tool Call Zod executada:{' '}
                             <code>
-                              upsertLeadAndContact(score=96) + movePipelineStage(&quot;qualificado_ia&quot;)
+                              upsertLeadAndContact(score=96) +
+                              movePipelineStage(&quot;qualificado_ia&quot;)
                             </code>
                           </div>
                         )}
@@ -1311,33 +1157,39 @@ export const App: React.FC = () => {
                         >
                           {aiPausedForContact ? (
                             <>
-                              <PlayCircle size={15} /> Retomar Agente IA (<code>ai_paused = false</code>)
+                              <PlayCircle size={15} /> Retomar assistente IA
                             </>
                           ) : (
                             <>
-                              <PauseCircle size={15} /> Assumir Humano / Pausar IA (
-                              <code>ai_paused = true</code>)
+                              <PauseCircle size={15} /> Assumir atendimento
                             </>
                           )}
                         </Button>
 
                         <Button variant="primary" size="sm" onClick={() => setQrModalOpen(true)}>
-                          <QrCode size={15} /> Gerenciar Sessões Baileys / QR Code
+                          <QrCode size={15} /> Gerenciar conexões WhatsApp
                         </Button>
                       </div>
                     </Card>
 
                     <Card style={{ padding: '28px' }}>
                       <h3 className="serif-editorial" style={{ marginTop: 0, fontSize: '1.35rem' }}>
-                        Simulador ao Vivo do Agente de IA (`@dcfoundry/ai`)
+                        Experimente uma conversa com o Foundry
                       </h3>
-                      <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      <p
+                        style={{
+                          fontSize: '0.82rem',
+                          color: 'var(--text-muted)',
+                          lineHeight: 1.5,
+                        }}
+                      >
                         Envie uma mensagem abaixo para executar o motor real de RAG, qualificação,
                         mascaramento de CPF/telefone (LGPD) e detecção de handoff humano:
                       </p>
 
                       <textarea
                         rows={3}
+                        aria-label="Mensagem para testar o Foundry"
                         value={testAiInput}
                         onChange={(e) => setTestAiInput(e.target.value)}
                         style={{
@@ -1354,7 +1206,7 @@ export const App: React.FC = () => {
 
                       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                         <Button variant="primary" size="sm" onClick={runLiveAiSimulation}>
-                          <Send size={14} /> Executar Inferência IA + RAG
+                          <Send size={14} /> Testar resposta do assistente
                         </Button>
                         <Button
                           variant="outline"
@@ -1386,8 +1238,8 @@ export const App: React.FC = () => {
                           <code>{aiSimulationResult.maskedInputText}</code>
                         </div>
                         <div>
-                          <strong>Score Calculado:</strong> {aiSimulationResult.qualification.score}/100 (
-                          {aiSimulationResult.qualification.temperature.toUpperCase()}) •{' '}
+                          <strong>Score Calculado:</strong> {aiSimulationResult.qualification.score}
+                          /100 ({aiSimulationResult.qualification.temperature.toUpperCase()}) •{' '}
                           <strong>Latência:</strong> {aiSimulationResult.latencyMs}ms
                         </div>
                         <div>
@@ -1409,7 +1261,7 @@ export const App: React.FC = () => {
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))',
                       gap: '24px',
                     }}
                   >
@@ -1422,13 +1274,12 @@ export const App: React.FC = () => {
                           marginBottom: 16,
                         }}
                       >
-                        <h3 style={{ margin: 0, fontSize: '1.15rem' }}>
-                          Prompt de Sistema Versionado por Sessão
-                        </h3>
+                        <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Orientações do Foundry</h3>
                         <Badge tone="teal">Versão v{promptVersion} Ativa</Badge>
                       </div>
                       <textarea
                         rows={5}
+                        aria-label="Orientações do Foundry"
                         value={systemPrompt}
                         onChange={(e) => setSystemPrompt(e.target.value)}
                         style={{
@@ -1448,15 +1299,19 @@ export const App: React.FC = () => {
                         size="sm"
                         onClick={() => setPromptVersion((v) => v + 1)}
                       >
-                        <Check size={14} /> Salvar Nova Versão (v{promptVersion + 1}) no Audit Log
+                        <Check size={14} /> Salvar versão v{promptVersion + 1}
                       </Button>
                     </Card>
 
                     <Card style={{ padding: '28px' }}>
-                      <h3 style={{ marginTop: 0, fontSize: '1.15rem' }}>
-                        Base de Conhecimento RAG Indexada em `pgvector` (768d HNSW)
-                      </h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <h3 style={{ marginTop: 0, fontSize: '1.15rem' }}>Base de conhecimento</h3>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 12,
+                        }}
+                      >
                         {INITIAL_KB_CHUNKS.map((chunk) => (
                           <div
                             key={chunk.id}
@@ -1511,7 +1366,7 @@ export const App: React.FC = () => {
                     >
                       <div>
                         <h3 style={{ margin: 0, fontSize: '1.15rem' }}>
-                          Contratos Ativos & Alocação de Squads / Clusters (`EXCLUDE USING gist`)
+                          Contratos e alocação da equipe
                         </h3>
                         <p
                           style={{
@@ -1520,8 +1375,8 @@ export const App: React.FC = () => {
                             color: 'var(--text-muted)',
                           }}
                         >
-                          Constraint GiST no PostgreSQL garante que nenhuma Squad ou Nó Dedicado
-                          sofra sobreposição de reserva no mesmo período.
+                          Acompanhe vigência, assinatura e disponibilidade da equipe em cada
+                          contrato.
                         </p>
                       </div>
                       <Button variant="primary" size="sm" onClick={() => setSigningModalOpen(true)}>
@@ -1561,14 +1416,26 @@ export const App: React.FC = () => {
                           },
                         ]}
                         columns={[
-                          { key: 'code', header: 'Contrato', render: (r) => <code>{r.code}</code> },
+                          {
+                            key: 'code',
+                            header: 'Contrato',
+                            render: (r) => <code>{r.code}</code>,
+                          },
                           {
                             key: 'client',
                             header: 'Cliente',
                             render: (r) => <strong>{r.client}</strong>,
                           },
-                          { key: 'resource', header: 'Recurso Alocado', render: (r) => r.resource },
-                          { key: 'period', header: 'Vigência', render: (r) => r.period },
+                          {
+                            key: 'resource',
+                            header: 'Recurso Alocado',
+                            render: (r) => r.resource,
+                          },
+                          {
+                            key: 'period',
+                            header: 'Vigência',
+                            render: (r) => r.period,
+                          },
                           {
                             key: 'status',
                             header: 'Status',
@@ -1604,14 +1471,12 @@ export const App: React.FC = () => {
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))',
                       gap: '24px',
                     }}
                   >
                     <Card style={{ padding: '28px' }}>
-                      <h3 style={{ marginTop: 0, fontSize: '1.15rem' }}>
-                        Faturas Recorrentes & Conciliação Pix / Boleto (Mercado Pago)
-                      </h3>
+                      <h3 style={{ marginTop: 0, fontSize: '1.15rem' }}>Faturas e recebimentos</h3>
                       <ResponsiveTable
                         rowKey={(r) => r.invoice}
                         data={[
@@ -1641,7 +1506,11 @@ export const App: React.FC = () => {
                             header: 'Cliente',
                             render: (r) => <strong>{r.client}</strong>,
                           },
-                          { key: 'dueDate', header: 'Vencimento', render: (r) => r.dueDate },
+                          {
+                            key: 'dueDate',
+                            header: 'Vencimento',
+                            render: (r) => r.dueDate,
+                          },
                           {
                             key: 'amount',
                             header: 'Valor',
@@ -1718,7 +1587,13 @@ export const App: React.FC = () => {
                     ABA 7: MARKETING, GOOGLE ADS & CONVERSÕES OFFLINE
                    ========================================================= */}
                 {activeTab === 'marketing' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '24px',
+                    }}
+                  >
                     <Card style={{ padding: '28px' }}>
                       <div
                         style={{
@@ -1732,7 +1607,7 @@ export const App: React.FC = () => {
                       >
                         <div>
                           <h3 style={{ margin: 0, fontSize: '1.15rem' }}>
-                            ROI, CPL, CAC e ROAS por Campanha Google Ads + Upload Offline SHA-256
+                            Resultados por campanha
                           </h3>
                           <p
                             style={{
@@ -1741,13 +1616,7 @@ export const App: React.FC = () => {
                               color: 'var(--text-muted)',
                             }}
                           >
-                            Link WhatsApp decorado pelo snippet:{' '}
-                            <code>
-                              {decorateWhatsAppLinkWithTrackingCode(
-                                'https://wa.me/5511999998888',
-                                'DCF-9F22',
-                              )}
-                            </code>
+                            Compare investimento, oportunidades qualificadas e receita por origem.
                           </p>
                         </div>
 
@@ -1884,10 +1753,8 @@ export const App: React.FC = () => {
                         marginBottom: 20,
                       }}
                     >
-                      <h3 style={{ margin: 0, fontSize: '1.15rem' }}>
-                        Gerenciador de Artigos SEO (`dcfoundrydigital.com/blog`)
-                      </h3>
-                      <Badge tone="teal">Sincronizado com o Site</Badge>
+                      <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Artigos e conteúdo</h3>
+                      <Badge tone="teal">Conteúdo de demonstração</Badge>
                     </div>
                     <ResponsiveTable
                       rowKey={(r) => r.slug}
@@ -1913,13 +1780,21 @@ export const App: React.FC = () => {
                           header: 'Título do Artigo',
                           render: (r) => <strong>{r.title}</strong>,
                         },
-                        { key: 'slug', header: 'Slug', render: (r) => <code>/{r.slug}</code> },
+                        {
+                          key: 'slug',
+                          header: 'Slug',
+                          render: (r) => <code>/{r.slug}</code>,
+                        },
                         {
                           key: 'status',
                           header: 'Status',
                           render: (r) => <Badge tone="teal">{r.status}</Badge>,
                         },
-                        { key: 'views', header: ' Alcance', render: (r) => r.views },
+                        {
+                          key: 'views',
+                          header: ' Alcance',
+                          render: (r) => r.views,
+                        },
                       ]}
                     />
                   </Card>
@@ -1929,7 +1804,13 @@ export const App: React.FC = () => {
                     ABA 9: AUDITORIA IMUTÁVEL, RBAC, LGPD & MIGRAÇÃO LEGADA
                    ========================================================= */}
                 {activeTab === 'audit' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '24px',
+                    }}
+                  >
                     <Card style={{ padding: '28px' }}>
                       <div
                         style={{
@@ -1970,9 +1851,7 @@ export const App: React.FC = () => {
                     </Card>
 
                     <Card style={{ padding: '28px' }}>
-                      <h3 style={{ marginTop: 0, fontSize: '1.15rem' }}>
-                        Trilha de Auditoria Imutável (`audit_logs` com Trigger Append-Only)
-                      </h3>
+                      <h3 style={{ marginTop: 0, fontSize: '1.15rem' }}>Histórico de atividades</h3>
                       <PermissionGate
                         subject={sessionUser}
                         permission="audit_log:read"
@@ -2012,7 +1891,11 @@ export const App: React.FC = () => {
                             },
                           ]}
                           columns={[
-                            { key: 'when', header: 'Horário', render: (r) => r.when },
+                            {
+                              key: 'when',
+                              header: 'Horário',
+                              render: (r) => r.when,
+                            },
                             {
                               key: 'actor',
                               header: 'Ator / Origem',
@@ -2045,67 +1928,99 @@ export const App: React.FC = () => {
         </main>
       </div>
 
-      {/* BOTTOM NAVIGATION MOBILE (<860px) */}
-      <nav
-        className="dcf-mobile-only"
-        aria-label="Navegação inferior mobile"
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 40,
-          backgroundColor: 'var(--color-navy-950)',
-          borderTop: '1px solid var(--color-navy-700)',
-          padding: '8px 10px',
-          justifyContent: 'space-around',
-          alignItems: 'center',
-        }}
-      >
-        {allNavItems.slice(0, 5).map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              style={{
-                position: 'relative',
-                background: 'transparent',
-                border: 'none',
-                color: isActive ? '#FFFFFF' : '#93A8C1',
-                padding: '8px 12px',
-                borderRadius: 12,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-                fontSize: 10,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {isActive && (
-                <motion.span
-                  layoutId="bottom-nav-glider"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    borderRadius: 12,
-                    backgroundColor: 'var(--color-brand-blue)',
-                    zIndex: 0,
-                  }}
-                />
-              )}
-              <span style={{ position: 'relative', zIndex: 1 }}>
-                <Icon size={17} />
-              </span>
-              <span style={{ position: 'relative', zIndex: 1 }}>{item.label.split(' ')[0]}</span>
-            </button>
-          );
-        })}
+      <nav className="crm-mobile-nav" aria-label="Navegação inferior">
+        {allNavItems
+          .filter((item) => ['dashboard', 'kanban', 'whatsapp', 'blog'].includes(item.id))
+          .map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-current={activeTab === item.id ? 'page' : undefined}
+                onClick={() => setActiveTab(item.id)}
+              >
+                <Icon size={20} />
+                <span>
+                  {item.id === 'dashboard'
+                    ? 'Início'
+                    : item.id === 'kanban'
+                      ? 'Funil'
+                      : item.id === 'blog'
+                        ? 'Blog'
+                        : 'WhatsApp'}
+                </span>
+              </button>
+            );
+          })}
+        <button
+          type="button"
+          aria-expanded={mobileMenuOpen}
+          onClick={() => setMobileMenuOpen(true)}
+        >
+          <Menu size={20} />
+          <span>Mais</span>
+        </button>
       </nav>
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            className="mobile-menu-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <motion.section
+              className="mobile-menu-panel"
+              data-crm-dialog
+              role="dialog"
+              aria-modal="true"
+              aria-label="Todas as áreas do CRM"
+              initial={{ x: -30 }}
+              animate={{ x: 0 }}
+              exit={{ x: -30 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="panel-heading">
+                <DcLogo size={30} subtitle="CRM" />
+                <button
+                  autoFocus
+                  type="button"
+                  className="icon-button"
+                  aria-label="Fechar navegação"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              {navGroups.map((group) => (
+                <div className="mobile-nav-group" key={group.groupTitle}>
+                  <p>{group.groupTitle}</p>
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        type="button"
+                        key={item.id}
+                        aria-current={activeTab === item.id ? 'page' : undefined}
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        <Icon size={19} />
+                        <span>{item.label}</span>
+                        <ArrowRight size={16} />
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* DRAWER LATERAL SPRING: FICHA COMPLETA DO LEAD (LEADSHEET) */}
       <AnimatePresence>
@@ -2126,6 +2041,11 @@ export const App: React.FC = () => {
             }}
           >
             <motion.div
+              className="lead-drawer"
+              data-crm-dialog
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Ficha de ${selectedLead.name}`}
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
@@ -2155,6 +2075,8 @@ export const App: React.FC = () => {
                 >
                   <Badge tone="teal">LeadSheet • {selectedLead.id}</Badge>
                   <button
+                    type="button"
+                    aria-label="Fechar ficha do lead"
                     onClick={() => setSelectedLead(null)}
                     style={{
                       background: 'transparent',
@@ -2170,7 +2092,13 @@ export const App: React.FC = () => {
                 <h2 className="serif-editorial" style={{ margin: '0 0 6px', fontSize: '1.6rem' }}>
                   {selectedLead.company}
                 </h2>
-                <p style={{ margin: '0 0 20px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                <p
+                  style={{
+                    margin: '0 0 20px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.9rem',
+                  }}
+                >
                   Responsável: <strong>{selectedLead.name}</strong> ({selectedLead.phone})
                 </p>
 
@@ -2245,12 +2173,21 @@ export const App: React.FC = () => {
             >
               <Card style={{ padding: '32px', textAlign: 'center' }}>
                 <DcLogo size={34} subtitle="Multi-Sessão Baileys" />
-                <h3 className="serif-editorial" style={{ fontSize: '1.4rem', margin: '16px 0 8px' }}>
+                <h3
+                  className="serif-editorial"
+                  style={{ fontSize: '1.4rem', margin: '16px 0 8px' }}
+                >
                   Pareamento de Sessão WhatsApp
                 </h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 20 }}>
-                  As chaves de autenticação são persistidas criptografadas com AES-256-GCM na
-                  tabela <code>whatsapp_auth_credentials</code> no PostgreSQL.
+                <p
+                  style={{
+                    fontSize: '0.82rem',
+                    color: 'var(--text-muted)',
+                    marginBottom: 20,
+                  }}
+                >
+                  As chaves de autenticação são persistidas criptografadas com AES-256-GCM na tabela{' '}
+                  <code>whatsapp_auth_credentials</code> no PostgreSQL.
                 </p>
 
                 <div
@@ -2335,11 +2272,20 @@ export const App: React.FC = () => {
                     >
                       <CheckCircle2
                         size={20}
-                        style={{ verticalAlign: 'middle', color: 'var(--color-teal-700)' }}
+                        style={{
+                          verticalAlign: 'middle',
+                          color: 'var(--color-teal-700)',
+                        }}
                       />{' '}
                       Contrato Assinado Digitalmente!
                     </h3>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                    <p
+                      style={{
+                        fontSize: '0.82rem',
+                        color: 'var(--text-muted)',
+                        lineHeight: 1.6,
+                      }}
+                    >
                       Hash SHA-256 e IP gravados no Audit Log imutável + Conversão Offline{' '}
                       <code>contrato_fechado</code> enfileirada para o Google Ads.
                     </p>
@@ -2356,7 +2302,10 @@ export const App: React.FC = () => {
                   </div>
                 ) : (
                   <div>
-                    <h3 className="serif-editorial" style={{ margin: '8px 0', fontSize: '1.35rem' }}>
+                    <h3
+                      className="serif-editorial"
+                      style={{ margin: '8px 0', fontSize: '1.35rem' }}
+                    >
                       Retainer Squad Dedicada Full-Stack & IA (`SQUAD-ALPHA`)
                     </h3>
                     <p
@@ -2366,11 +2315,16 @@ export const App: React.FC = () => {
                         lineHeight: 1.6,
                       }}
                     >
-                      Contratante: <strong>Vortex Fintech S.A.</strong> • Vigência: 12 meses •
-                      Valor Mensal: <strong>R$ 15.400,00</strong>.
+                      Contratante: <strong>Vortex Fintech S.A.</strong> • Vigência: 12 meses • Valor
+                      Mensal: <strong>R$ 15.400,00</strong>.
                     </p>
                     <div
-                      style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        gap: 10,
+                        marginTop: 24,
+                      }}
                     >
                       <Button
                         variant="outline"
@@ -2421,16 +2375,28 @@ export const App: React.FC = () => {
               exit={{ opacity: 0, scale: 0.94, y: -12 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               onClick={(e) => e.stopPropagation()}
+              data-crm-dialog
+              role="dialog"
+              aria-modal="true"
+              aria-label="Buscar no CRM"
               style={{ width: '100%', maxWidth: 540, padding: '0 16px' }}
             >
               <Card style={{ padding: '24px' }}>
                 <div
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    marginBottom: 16,
+                  }}
                 >
                   <Search size={18} />
                   <input
                     autoFocus
-                    placeholder="Buscar empresas, contratos (CTR-2026), squads ou módulos..."
+                    aria-label="Buscar área do CRM"
+                    value={commandQuery}
+                    onChange={(e) => setCommandQuery(e.target.value)}
+                    placeholder="Buscar uma área do CRM..."
                     style={{
                       flex: 1,
                       border: 'none',
@@ -2442,37 +2408,54 @@ export const App: React.FC = () => {
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {allNavItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setActiveTab(item.id);
-                          setCommandOpen(false);
-                        }}
-                        style={{
-                          padding: '10px 14px',
-                          borderRadius: 10,
-                          border: 'none',
-                          backgroundColor: 'var(--bg-subtle)',
-                          color: 'var(--text-primary)',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          fontWeight: 600,
-                          fontSize: '0.82rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                          <Icon size={15} /> {item.label}
-                        </span>
-                        <ArrowRight size={14} />
-                      </button>
-                    );
-                  })}
+                  {!allNavItems.some((item) =>
+                    item.label
+                      .toLocaleLowerCase('pt-BR')
+                      .includes(commandQuery.toLocaleLowerCase('pt-BR')),
+                  ) && <p className="command-empty">Nenhuma área encontrada. Tente outro nome.</p>}
+                  {allNavItems
+                    .filter((item) =>
+                      item.label
+                        .toLocaleLowerCase('pt-BR')
+                        .includes(commandQuery.toLocaleLowerCase('pt-BR')),
+                    )
+                    .map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveTab(item.id);
+                            setCommandOpen(false);
+                          }}
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: 10,
+                            border: 'none',
+                            backgroundColor: 'var(--bg-subtle)',
+                            color: 'var(--text-primary)',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            fontSize: '0.82rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 10,
+                            }}
+                          >
+                            <Icon size={15} /> {item.label}
+                          </span>
+                          <ArrowRight size={14} />
+                        </button>
+                      );
+                    })}
                 </div>
               </Card>
             </motion.div>

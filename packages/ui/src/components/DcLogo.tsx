@@ -23,10 +23,7 @@ export const DcLogo: React.FC<DcLogoProps> = ({
   const [imgError, setImgError] = useState(false);
 
   return (
-    <div
-      className={`inline-flex items-center gap-3 select-none ${className}`}
-      style={{ fontFamily: 'var(--font-display)' }}
-    >
+    <div className={`dcf-logo ${className}`} style={{ fontFamily: 'var(--font-display)' }}>
       {!imgError ? (
         <img
           src={logoSrc}
@@ -76,7 +73,7 @@ export const DcLogo: React.FC<DcLogoProps> = ({
               color: 'inherit',
             }}
           >
-            DCFoundry<span style={{ color: '#3B82F6' }}>Digital</span>
+            DCFoundry<span style={{ color: 'var(--brand-primary)' }}>Digital</span>
           </span>
           {subtitle && (
             <span

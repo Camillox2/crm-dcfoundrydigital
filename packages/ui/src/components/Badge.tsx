@@ -28,6 +28,7 @@ export const Badge: React.FC<BadgeProps> = ({ tone = 'sky', children }) => {
 
   return (
     <span
+      className={`dcf-badge dcf-badge-${tone}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
