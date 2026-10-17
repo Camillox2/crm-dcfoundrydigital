@@ -794,3 +794,67 @@
     animation: none;
   }
 }
+.calendar-events-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.calendar-events h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.calendar-entry {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 0;
+  border: 0;
+  border-bottom: 1px solid #e3ebf4;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.calendar-entry time {
+  display: flex;
+  flex-direction: column;
+  min-width: 60px;
+  font-size: 12px;
+  color: #1c61bf;
+}
+.calendar-entry > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.calendar-entry small {
+  display: block;
+  color: #64768a;
+  font-size: 11px;
+  margin-top: 6px;
+}
+.calendar-empty {
+  padding: 30px 10px;
+  text-align: center;
+  color: #526e8b;
+}
+.calendar-settings {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #dce6f1;
+}
+.calendar-settings summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.calendar-weekdays {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.calendar-weekdays label {
+  font-size: 12px;
+}

@@ -6,6 +6,7 @@ import type { AuthenticatedSession } from '../../pages/LoginPage.js';
 import { useModule } from './useModule.js';
 import { ModuleNotice } from './ModuleTools.js';
 import { RecordsModule } from './RecordsModule.js';
+import { CalendarEvents } from './CalendarEvents.js';
 
 export function AgendaWorkspace({
   user,
@@ -68,6 +69,7 @@ export function AgendaWorkspace({
   };
   return (
     <div className="module-workspace">
+      <CalendarEvents user={user} leads={leads} />
       <div className="ops-chart-grid">
         <Card className="ops-calendar">
           <div className="panel-heading">

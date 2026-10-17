@@ -9,6 +9,7 @@ import {
 import type { WhatsAppEvent } from '@dcfoundry/shared';
 import type { CrmPool } from './agency-access.js';
 import { askGemini } from './assistant-provider.js';
+import { bookFoundryMeeting } from './calendar.js';
 export type FoundryGenerate = (
   message: string,
   context: string,
@@ -138,6 +139,16 @@ export class FoundryEngine {
           );
           await client.query('COMMIT');
           continue;
+        }
+        if (!result.handoff && 'meetingRequest' in result && result.meetingRequest) {
+          const booking = await bookFoundryMeeting(
+            client,
+            row,
+            result.meetingRequest,
+            raw.text,
+            'whatsapp:' + row.message_id,
+          );
+          result = { ...result, answer: booking.answer, handoff: booking.handoff ?? false };
         }
         const f: FoundryFacts = result.facts,
           revision = row.ai_control_revision + (result.handoff ? 1 : 0);

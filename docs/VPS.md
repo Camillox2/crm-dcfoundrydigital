@@ -58,6 +58,12 @@ Requisitos: Node.js 22 atualizado, Corepack/pnpm 10.6, Docker com Compose e um d
 
 A migration `0011_client_portal.sql` adiciona links pessoais de 30 dias, solicitações e linha do tempo. Abra **Portal & solicitações**, escolha o lead e gere o link. Ele mostra apenas documentos vinculados a esse lead, nunca rascunhos de propostas nem conversas internas. O cliente pode aceitar a versão enviada e abrir ou responder solicitações de ajuste, suporte e manutenção. A equipe altera o status com controle de versão. O aceite guarda o nome, IP e versão sem atribuir a ação a um funcionário. Revogar o link bloqueia os próximos acessos. Não há variável nova neste item; links devem usar a mesma origem HTTPS do CRM.
 
+### Agenda e reservas pela Foundry — item 7
+
+A migration `0012_agency_calendar.sql` cria compromissos e versões em tabelas próprias. **Agenda & tarefas** mantém as tarefas anteriores e acrescenta reuniões, follow-ups e eventos vinculados ao lead. Conflitos de horário do mesmo responsável são bloqueados dentro da transação. Concluir ou cancelar preserva o histórico.
+
+Cada responsável configura dias, horário e duração em **Disponibilidade para a Foundry**; começa desativada. O fuso das reservas automáticas é Brasília. A Foundry exige data completa e horário informados pelo cliente, recusa horários ocupados e só confirma após gravar a reserva. O laboratório continua sem agendar. Não há integração de videoconferência automática: informe o link no compromisso. Não há variável nova.
+
 ## O que inicia limpo
 
 O seed cria somente os sete papéis de acesso, um pipeline comercial e suas quatro etapas. Não insere clientes, produtos, contratos, faturas, campanhas ou artigos. O administrador é criado por um comando separado. Contas e senhas de demonstração existem apenas em fixtures dos testes; a API não as carrega. O frontend de produção não oferece o botão de prévia local.

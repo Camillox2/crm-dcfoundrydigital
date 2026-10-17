@@ -12,6 +12,54 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { users, pipelines } from './schema.js';
+export const calendarSettings = pgTable('calendar_settings', {
+  ownerId: uuid('owner_id')
+    .primaryKey()
+    .references(() => users.id),
+  enabled: boolean('enabled').notNull().default(false),
+  weekdays: integer('weekdays').array().notNull(),
+  startHour: integer('start_hour').notNull().default(9),
+  endHour: integer('end_hour').notNull().default(18),
+  durationMinutes: integer('duration_minutes').notNull().default(30),
+  version: integer('version').notNull().default(1),
+});
+export const calendarEvents = pgTable('calendar_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
+  leadId: uuid('lead_id'),
+  title: varchar('title', { length: 180 }).notNull(),
+  kind: varchar('kind', { length: 24 }).notNull(),
+  description: text('description').notNull().default(''),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+  endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+  meetingUrl: text('meeting_url').notNull().default(''),
+  status: varchar('status', { length: 16 }).notNull().default('scheduled'),
+  source: varchar('source', { length: 16 }).notNull().default('user'),
+  sourceKey: varchar('source_key', { length: 180 }).unique(),
+  version: integer('version').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const calendarEventVersions = pgTable('calendar_event_versions', {
+  eventId: uuid('event_id')
+    .notNull()
+    .references(() => calendarEvents.id),
+  version: integer('version').notNull(),
+  title: varchar('title', { length: 180 }).notNull(),
+  kind: varchar('kind', { length: 24 }).notNull(),
+  description: text('description').notNull(),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+  endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+  meetingUrl: text('meeting_url').notNull(),
+  status: varchar('status', { length: 16 }).notNull(),
+  leadId: uuid('lead_id'),
+  actorId: uuid('actor_id')
+    .notNull()
+    .references(() => users.id),
+  savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+});
 export const clientPortalLinks = pgTable('client_portal_links', {
   id: uuid('id').defaultRandom().primaryKey(),
   leadId: uuid('lead_id').notNull(),
@@ -372,7 +420,7 @@ export const agencyProposalVersions = pgTable('agency_proposals_versions', {
   version: integer('version').notNull(),
   ...proposalFields(),
   actorId: uuid('actor_id').references(() => users.id),
-  actorType: varchar('actor_type',{length:16}).notNull().default('user'),
+  actorType: varchar('actor_type', { length: 16 }).notNull().default('user'),
   savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
 });
 export const agencyServiceContracts = pgTable('service_contracts', {

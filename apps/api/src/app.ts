@@ -32,6 +32,7 @@ import { registerPipelineRoutes } from './pipeline-routes.js';
 import { registerCompanySettings } from './company-settings.js';
 import { registerServiceContractRoutes } from './service-contract-routes.js';
 import { registerPortalRoutes } from './portal-routes.js';
+import { registerCalendarRoutes } from './calendar-routes.js';
 import type { ContractMailer } from './contract-delivery.js';
 
 export interface DemoUserRecord {
@@ -127,6 +128,7 @@ export async function buildApiServer(
   await registerCompanySettings(app, database);
   await registerServiceContractRoutes(app, database, whatsapp, options.contractMailer);
   await registerPortalRoutes(app, database);
+  await registerCalendarRoutes(app, database);
   app.addHook('onClose', async () => {
     if (connection) await (await connection).pool.end();
   });
