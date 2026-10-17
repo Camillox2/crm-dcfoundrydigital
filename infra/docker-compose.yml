@@ -1,0 +1,131 @@
+version: '3.9'
+
+name: dc-foundry-crm
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: dcfoundry-crm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dcfoundry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dcfoundry_local_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-dcfoundry_crm}
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=768MB"
+      - "-c"
+      - "work_mem=8MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "max_connections=60"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dcfoundry} -d ${POSTGRES_DB:-dcfoundry_crm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  redis:
+    image: redis:7-alpine
+    container_name: dcfoundry-crm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "192mb", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 224M
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    container_name: dcfoundry-crm-api
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=512"
+      PORT: "4000"
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 640M
+
+  worker:
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    container_name: dcfoundry-crm-worker
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=768"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 896M
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: dcfoundry-crm-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../apps/web/dist:/srv/web:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

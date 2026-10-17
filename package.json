@@ -1,0 +1,35 @@
+{
+  "name": "dc-foundry-crm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DC Foundry Digital CRM — Plataforma de CRM, Locação/Venda Hospitalar, WhatsApp IA e Atribuição de Marketing",
+  "packageManager": "pnpm@10.6.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r run build",
+    "dev": "pnpm --parallel -r run dev",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "pnpm --filter @dcfoundry/db db:generate",
+    "db:migrate": "pnpm --filter @dcfoundry/db db:migrate",
+    "db:seed": "pnpm --filter @dcfoundry/db db:seed",
+    "docker:up": "docker compose -f infra/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infra/docker-compose.yml down"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "jsdom": "^26.0.0",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2",
+    "turbo": "^2.4.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}

@@ -1,0 +1,61 @@
+import pg from 'pg';
+import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as schema from './schema.js';
+
+const { Pool } = pg;
+
+export interface DatabaseConnectionResult {
+  db: NodePgDatabase<typeof schema>;
+  pool: pg.Pool;
+  activeTarget: 'primary' | 'fallback';
+}
+
+/**
+ * Inicializa conexão PostgreSQL priorizando DATABASE_URL (Neon em produção)
+ * e realizando fallback automático para DATABASE_FALLBACK_URL (Postgres Docker local).
+ */
+export async function createDatabaseConnection(
+  primaryUrl = process.env.DATABASE_URL,
+  fallbackUrl = process.env.DATABASE_FALLBACK_URL,
+): Promise<DatabaseConnectionResult> {
+  const targetPrimary =
+    primaryUrl ?? 'postgresql://dcfoundry:dcfoundry_local_dev@localhost:5432/dcfoundry_crm';
+
+  const primaryPool = new Pool({
+    connectionString: targetPrimary,
+    max: 10,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 4_000,
+  });
+
+  try {
+    const client = await primaryPool.connect();
+    client.release();
+    return {
+      db: drizzle(primaryPool, { schema }),
+      pool: primaryPool,
+      activeTarget: 'primary',
+    };
+  } catch (primaryErr) {
+    await primaryPool.end().catch(() => undefined);
+
+    if (!fallbackUrl || fallbackUrl === targetPrimary) {
+      throw primaryErr;
+    }
+
+    const fallbackPool = new Pool({
+      connectionString: fallbackUrl,
+      max: 10,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 4_000,
+    });
+
+    const client = await fallbackPool.connect();
+    client.release();
+    return {
+      db: drizzle(fallbackPool, { schema }),
+      pool: fallbackPool,
+      activeTarget: 'fallback',
+    };
+  }
+}

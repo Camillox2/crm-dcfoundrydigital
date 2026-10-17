@@ -1,0 +1,17 @@
+{
+  "name": "DC Foundry Digital CRM",
+  "short_name": "DC Foundry CRM",
+  "description": "Plataforma inteligente de CRM, Locação e Venda de Equipamentos Hospitalares, WhatsApp IA e Atribuição de Ads.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#061528",
+  "theme_color": "#1D5FAE",
+  "icons": [
+    {
+      "src": "/logosemfundonova.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

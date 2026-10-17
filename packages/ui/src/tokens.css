@@ -1,0 +1,274 @@
+/* ==========================================================================
+   DC Foundry Digital CRM — Design Tokens & Paleta Oficial (Tema Claro e Escuro)
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Manrope';
+  src: url('/fonts/manrope-latin.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Paleta Exata (Seção 2) */
+  --color-navy-950: #061528;
+  --color-navy-900: #0A1D35;
+  --color-navy-800: #0D2B4C;
+  --color-navy-700: #123B63;
+  --color-brand-blue: #1D5FAE;
+  --color-brand-blue-dark: #1A4D85;
+  --color-deep-navy-start: #102A4C;
+  --color-deep-navy-end: #071D35;
+  --color-teal-700: #0F766E;
+  --color-teal-600: #12847B;
+  --color-teal-100: #DEF3EF;
+  --color-teal-50: #EFFAF8;
+  --color-sky-100: #DCE9F8;
+  --color-sky-50: #EEF4FC;
+  --color-ink: #0B1E33;
+  --color-ink-soft: #405267;
+  --color-muted: #667789;
+  --color-line: #DFE7EC;
+  --color-line-strong: #D6DFE7;
+  --color-surface: #F6F9FB;
+  --color-surface-alt: #F7FAFC;
+  --color-warm-bg: #F6F1E8;
+  --color-warm-card: #FFFDF9;
+  --color-warm-border: #E2D6C2;
+  --color-white: #FFFFFF;
+
+  /* Superfícies e Semânticos - Modo Claro */
+  --bg-page: var(--color-surface);
+  --bg-card: var(--color-white);
+  --bg-sidebar: var(--color-navy-950);
+  --bg-subtle: var(--color-sky-50);
+  --bg-selected: var(--color-sky-100);
+  --bg-warm: var(--color-warm-bg);
+  --text-primary: var(--color-ink);
+  --text-secondary: var(--color-ink-soft);
+  --text-muted: var(--color-muted);
+  --border-default: var(--color-line);
+  --border-strong: var(--color-line-strong);
+  --brand-primary: var(--color-brand-blue);
+  --brand-primary-hover: var(--color-brand-blue-dark);
+  --status-success: var(--color-teal-700);
+  --status-success-hover: var(--color-teal-600);
+  --status-success-bg: var(--color-teal-100);
+  --status-success-soft: var(--color-teal-50);
+
+  /* Gradientes de Hero e Painéis */
+  --hero-gradient: radial-gradient(120% 80% at 100% 0%, #1D5FAE 0%, rgba(29, 95, 174, 0) 70%),
+    linear-gradient(145deg, #102A4C 0%, #071D35 55%, #061528 100%);
+
+  /* Tipografia */
+  --font-sans: 'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Manrope', 'Inter', sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
+
+  /* Escala Tipográfica */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+
+  /* Raios (12px a 20px) */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+
+  /* Sombras Suaves Azuladas */
+  --shadow-card: 0 4px 20px -2px rgba(11, 30, 51, 0.06), 0 2px 6px -1px rgba(29, 95, 174, 0.04);
+  --shadow-elevated: 0 14px 34px -4px rgba(10, 29, 53, 0.14), 0 4px 12px -2px rgba(29, 95, 174, 0.08);
+  --shadow-primary-btn: 0 12px 24px -10px rgba(29, 95, 174, 0.65);
+
+  /* Grid de Espaçamento de 4px */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+}
+
+[data-theme='dark'] {
+  --bg-page: var(--color-navy-950);
+  --bg-card: var(--color-navy-900);
+  --bg-sidebar: #040E1B;
+  --bg-subtle: var(--color-navy-800);
+  --bg-selected: var(--color-navy-700);
+  --bg-warm: var(--color-navy-800);
+  --text-primary: #F7FAFC;
+  --text-secondary: #DCE9F8;
+  --text-muted: #93A8C1;
+  --border-default: var(--color-navy-700);
+  --border-strong: #1B4F82;
+  --brand-primary: #2B74C9;
+  --brand-primary-hover: var(--color-brand-blue);
+  --status-success: #14B8A6;
+  --status-success-hover: var(--color-teal-600);
+  --status-success-bg: rgba(15, 118, 110, 0.28);
+  --status-success-soft: rgba(15, 118, 110, 0.14);
+  --shadow-card: 0 6px 24px -2px rgba(0, 0, 0, 0.45);
+  --shadow-elevated: 0 18px 40px -4px rgba(0, 0, 0, 0.65);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.tnum {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.serif-editorial {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+/* Traço azul desenhado à mão sob títulos editoriais */
+.dcf-mark {
+  position: relative;
+  display: inline-block;
+}
+.dcf-mark > svg {
+  position: absolute;
+  left: -1%;
+  bottom: -0.18em;
+  width: 102%;
+  height: 0.24em;
+  overflow: visible;
+  pointer-events: none;
+}
+.dcf-mark > svg path {
+  fill: none;
+  stroke: var(--brand-primary);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 320;
+  stroke-dashoffset: 320;
+  opacity: 0.75;
+  animation: dcf-mark-draw 850ms 150ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes dcf-mark-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Ornamento '+' flutuante no hero */
+@keyframes dcf-float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-9px) rotate(10deg); }
+}
+
+/* Efeito Ripple nos botões */
+@keyframes dcf-ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(3.8);
+    opacity: 0;
+  }
+}
+
+/* Scrollbar customizada */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-page);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-primary);
+}
+
+/* Animação de Skeleton respeitando prefers-reduced-motion */
+@keyframes dcfoundry-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.dcf-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--border-default) 25%,
+    var(--bg-subtle) 50%,
+    var(--border-default) 75%
+  );
+  background-size: 200% 100%;
+  animation: dcfoundry-shimmer 1.5s infinite linear;
+  border-radius: var(--radius-sm);
+}
+
+/* Responsividade: Desktop Sidebar vs Mobile Bottom Nav & Tabelas que viram Cards */
+.dcf-desktop-only {
+  display: flex;
+}
+.dcf-mobile-only {
+  display: none;
+}
+.dcf-table-desktop {
+  display: block;
+}
+.dcf-cards-mobile {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .dcf-desktop-only {
+    display: none !important;
+  }
+  .dcf-mobile-only {
+    display: flex !important;
+  }
+  .dcf-table-desktop {
+    display: none !important;
+  }
+  .dcf-cards-mobile {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dcf-skeleton,
+  .dcf-mark > svg path {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
