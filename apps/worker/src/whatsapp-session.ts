@@ -287,7 +287,15 @@ export function createSessionManager({
     };
     socket.ev.on('messages.upsert', ({ messages, type }) => {
       messagesTail = messagesTail
-        .then(() => ingest(messages, type !== 'notify'))
+        .then(async () => {
+          const now = Date.now();
+          const live: any[] = [];
+          const old: any[] = [];
+          for (const raw of messages ?? [])
+            (upsertIsHistorical(type, raw, now) ? old : live).push(raw);
+          if (live.length) await ingest(live, false);
+          if (old.length) await ingest(old, true);
+        })
         .catch(() => undefined);
     });
     socket.ev.on('messaging-history.set', ({ messages = [], progress = 0 }) => {
@@ -395,6 +403,17 @@ export function createSessionManager({
     },
   };
   return manager;
+}
+
+/** Baileys marks offline catch-up as "append". A recent one is still a live customer message. */
+export const LIVE_UPSERT_WINDOW_MS = 30 * 60 * 1000;
+
+export function upsertIsHistorical(type: string | undefined, raw: any, now = Date.now()) {
+  if (type === 'notify') return false;
+  const timestamp = Number(raw?.messageTimestamp?.toString?.() ?? raw?.messageTimestamp) * 1000;
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return true;
+  const age = now - timestamp;
+  return age > LIVE_UPSERT_WINDOW_MS || age < -60_000;
 }
 
 export function parseText(raw: any, historical: boolean): WhatsAppEvent['messages'] {

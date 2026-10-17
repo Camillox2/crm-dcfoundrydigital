@@ -6,7 +6,7 @@ import {
   wantsHuman,
   type FoundryFacts,
 } from '@dcfoundry/ai';
-import type { WhatsAppEvent } from '@dcfoundry/shared';
+import { directIdentity, type WhatsAppEvent } from '@dcfoundry/shared';
 import type { CrmPool } from './agency-access.js';
 import { askGemini } from './assistant-provider.js';
 import { trackedGemini, type AiFeature } from './ai-usage.js';
@@ -76,10 +76,15 @@ export class FoundryEngine {
       return;
     for (const raw of event.messages ?? []) {
       if (raw.fromMe || raw.historical) continue;
+      const identity = directIdentity(
+        raw.jid,
+        raw.phone ? raw.phone.replace(/^\+/, '') + '@s.whatsapp.net' : null,
+      );
+      if (!identity) continue;
       const row = (
         await this.pool.query(
           `SELECT m.id AS message_id,l.* FROM wa_messages m JOIN workspace_leads l ON l.id=m.lead_id JOIN wa_sessions s ON s.id=m.session_id JOIN wa_conversations c ON c.session_id=m.session_id AND c.lead_id=m.lead_id WHERE m.session_id=$1 AND m.jid=$2 AND m.external_id=$3 AND m.direction='inbound' AND m.historical=false AND s.generation=$4 AND s.provider='baileys' AND s.status='connected' AND s.enabled=true AND l.archived_at IS NULL AND l.ai_paused=false AND c.ai_enabled=true`,
-          [event.sessionId, raw.jid, raw.externalId, event.generation],
+          [event.sessionId, identity.jid, raw.externalId, event.generation],
         )
       ).rows[0];
       if (!row) continue;
@@ -87,8 +92,23 @@ export class FoundryEngine {
         `INSERT INTO foundry_turns(message_id,lead_id,control_revision) VALUES($1,$2,$3) ON CONFLICT(message_id) DO NOTHING RETURNING id`,
         [row.message_id, row.id, row.ai_control_revision],
       );
-      if (!claim.rows.length) continue;
-      const turnId = claim.rows[0].id;
+      let turnId = claim.rows[0]?.id as string | undefined;
+      if (!turnId) {
+        const taken = await this.pool.query(
+          `UPDATE foundry_turns SET created_at=now() WHERE message_id=$1 AND state='processing' AND created_at < now() - interval '2 minutes' RETURNING id`,
+          [row.message_id],
+        );
+        turnId = taken.rows[0]?.id;
+        if (!turnId) {
+          const state = (
+            await this.pool.query('SELECT state FROM foundry_turns WHERE message_id=$1', [
+              row.message_id,
+            ])
+          ).rows[0]?.state;
+          if (state === 'processing') throw new Error('Foundry turn still in progress');
+          continue;
+        }
+      }
       let result: Awaited<ReturnType<typeof evaluateFoundry>>;
       try {
         result =
@@ -116,8 +136,9 @@ export class FoundryEngine {
               };
       } catch {
         result = {
-          answer: 'Vou encaminhar sua conversa para a equipe confirmar os próximos passos.',
-          handoff: true,
+          answer:
+            'Recebi sua mensagem. Me conta o objetivo do projeto que eu sigo com você por aqui.',
+          handoff: false,
           facts: {},
           model: 'provider_unavailable',
         };
@@ -179,7 +200,7 @@ export class FoundryEngine {
             event.sessionId,
             row.id,
             messageId.replaceAll('-', '').toUpperCase(),
-            raw.jid,
+            identity.jid,
             result.answer,
           ],
         );
@@ -189,7 +210,7 @@ export class FoundryEngine {
             messageId,
             event.sessionId,
             event.generation,
-            raw.jid,
+            identity.jid,
             result.answer,
             row.id,
             revision,
@@ -207,6 +228,9 @@ export class FoundryEngine {
         await client.query('COMMIT');
       } catch (e) {
         await client.query('ROLLBACK');
+        await this.pool.query(`DELETE FROM foundry_turns WHERE id=$1 AND state='processing'`, [
+          turnId,
+        ]);
         throw e;
       } finally {
         client.release();

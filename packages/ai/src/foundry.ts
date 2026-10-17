@@ -80,6 +80,28 @@ export function groundedFacts(input: string, facts: z.infer<typeof factsSchema>)
   }
   return result;
 }
+function readFoundryJson(raw: string) {
+  const stripped = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+  const start = stripped.indexOf('{');
+  const end = stripped.lastIndexOf('}');
+  const candidates = [
+    stripped,
+    ...(start >= 0 && end > start ? [stripped.slice(start, end + 1)] : []),
+  ];
+  let last: unknown;
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      last = error;
+    }
+  }
+  throw last instanceof Error ? last : new Error('Foundry response is not JSON');
+}
 export function parseFoundryTurn(raw: string, input: string, knowledge: string) {
   if (wantsHuman(input))
     return {
@@ -89,14 +111,11 @@ export function parseFoundryTurn(raw: string, input: string, knowledge: string) 
     };
   let parsed: z.infer<typeof responseSchema>;
   try {
-    parsed = responseSchema.parse(
-      JSON.parse(raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')),
-    );
+    parsed = responseSchema.parse(readFoundryJson(raw));
   } catch {
     return {
-      answer:
-        'Prefiro confirmar essa informação com a equipe. Vou encaminhar sua conversa para um atendimento humano.',
-      handoff: true,
+      answer: 'Pode me contar um pouco mais sobre o projeto? Assim eu te oriento com precisão.',
+      handoff: false,
       facts: {} as FoundryFacts,
     };
   }

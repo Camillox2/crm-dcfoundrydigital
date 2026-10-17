@@ -13,6 +13,7 @@ import type { WhatsAppCommand, WhatsAppEvent } from '@dcfoundry/shared';
 import { mapMediaMessage, createLivePhotos, executeLiveCommand } from './live-media.js';
 import { acquireWorkerLease } from './worker-lease.js';
 import { createSendLimit } from './send-limit.js';
+import { foundrySendDecision } from './foundry-send-gate.js';
 if (!process.env.REDIS_URL) throw new Error('REDIS_URL is required for the WhatsApp worker.');
 process.umask(0o077);
 const ownership = new Redis(process.env.REDIS_URL, {
@@ -65,13 +66,23 @@ const manager = createSessionManager({
         producer.get('dc-wa-ai-enabled'),
         producer.hget('dc-wa-ai-controls', command.leadId ?? ''),
       ]);
-      const control = raw ? JSON.parse(raw) : null;
-      if (
-        enabled !== '1' ||
-        !control ||
-        control.revision !== command.aiRevision ||
-        (control.paused && !command.handoffAck)
-      ) {
+      let control: { revision?: unknown; paused?: unknown } | null = null;
+      if (raw) {
+        try {
+          control = JSON.parse(raw);
+        } catch {
+          throw new Error('Foundry control record is unreadable');
+        }
+      }
+      const decision = foundrySendDecision({
+        enabled,
+        control,
+        aiRevision: command.aiRevision,
+        handoffAck: command.handoffAck,
+      });
+      if (decision === 'retry')
+        throw new Error('Foundry send is waiting for the current control record');
+      if (decision === 'drop') {
         if (command.messageId)
           await emit({
             id: randomUUID(),

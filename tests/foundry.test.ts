@@ -29,7 +29,16 @@ it('retains only evidenced qualification facts and rejects invented prices and p
       'Criamos sites.',
     ).handoff,
   ).toBe(true);
-  expect(parseFoundryTurn('not JSON', 'Olá', '').handoff).toBe(true);
+  const unparsed = parseFoundryTurn('not JSON', 'Olá', '');
+  expect(unparsed.handoff).toBe(false);
+  expect(unparsed.answer.length).toBeGreaterThan(10);
+  expect(
+    parseFoundryTurn(
+      'Claro. {"answer":"Qual é o prazo do projeto?","handoff":false,"facts":{}}',
+      'Quero um site',
+      '',
+    ),
+  ).toMatchObject({ handoff: false, answer: 'Qual é o prazo do projeto?' });
   expect(parseFoundryTurn('', 'Quero uma pessoa de verdade', '').handoff).toBe(true);
 });
 it('tries up to ten configured Gemini models with the provider mocked', async () => {

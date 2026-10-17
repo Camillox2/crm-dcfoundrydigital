@@ -53,7 +53,9 @@ export function startWhatsAppTransport(
       await producer.hset('dc-wa-ai-controls', leadId, JSON.stringify({ revision, paused }));
     },
     async enabled(enabled) {
-      await producer.set('dc-wa-ai-enabled', enabled ? '1' : '0', 'PX', 15000);
+      // Persistent on purpose: a 15s TTL expired while a send waited in the rate limit
+      // and the worker then dropped the Foundry reply.
+      await producer.set('dc-wa-ai-enabled', enabled ? '1' : '0');
     },
     async publish(command) {
       await queue.add(command.type, command, {
