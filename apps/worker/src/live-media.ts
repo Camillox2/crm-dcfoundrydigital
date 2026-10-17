@@ -153,7 +153,7 @@ export async function executeLiveCommand(
           },
           mimetype: media.mime,
           ...(media.type === 'file' ? { fileName: media.name } : {}),
-          ...(media.type !== 'audio' ? { caption: command.text ?? '' } : {}),
+          ...(media.type !== 'audio' && media.type !== 'sticker' ? { caption: command.text ?? '' } : {}),
         }
       : { text: command.text ?? '' };
   const messageId = command.messageId.replaceAll('-', '').toUpperCase();

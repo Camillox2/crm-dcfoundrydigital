@@ -112,7 +112,7 @@ export async function registerWhatsAppChat(
       const rows = (
         await store.pool.query(
           `SELECT l.id,c.id AS conversation_id,l.name,l.company,l.phone,c.ai_enabled,m.body AS last_message,m.sent_at AS last_at,
-       m.direction AS last_direction,m.message_type AS last_message_type,c.status,c.last_inbound_at,
+       m.direction AS last_direction,m.message_type AS last_message_type,m.actor_type AS last_actor_type,c.status,c.last_inbound_at,
        l.created_at,l.campaign,l.scope_summary,COALESCE(NULLIF(l.utm_source,''),NULLIF(l.campaign,''),'WhatsApp') AS source,
        COALESCE(st.sla_minutes,30) AS sla_goal_minutes,
        COALESCE((SELECT count(*)::int FROM wa_messages u WHERE u.session_id=c.session_id AND u.lead_id=c.lead_id AND u.direction='inbound' AND u.historical=false AND u.sent_at>COALESCE(c.last_read_at,'epoch'::timestamptz)),0) AS unread_count,
@@ -120,7 +120,7 @@ export async function registerWhatsAppChat(
        COALESCE((SELECT jid FROM wa_identities WHERE session_id=$1 AND lead_id=l.id ORDER BY created_at DESC LIMIT 1),CASE WHEN l.phone ~ '^\\+[1-9][0-9]{7,14}$' THEN substring(l.phone FROM 2)||'@s.whatsapp.net' ELSE NULL END) AS jid
        FROM wa_conversations c JOIN workspace_leads l ON l.id=c.lead_id LEFT JOIN users u ON u.id=l.owner_id
        LEFT JOIN pipeline_stages st ON st.pipeline_id=l.pipeline_id AND st.slug=l.stage
-       LEFT JOIN LATERAL (SELECT body,sent_at,direction,message_type FROM wa_messages WHERE session_id=$1 AND lead_id=l.id ORDER BY sent_at DESC,id DESC LIMIT 1) m ON true
+       LEFT JOIN LATERAL (SELECT body,sent_at,direction,message_type,actor_type FROM wa_messages WHERE session_id=$1 AND lead_id=l.id ORDER BY sent_at DESC,id DESC LIMIT 1) m ON true
        WHERE l.archived_at IS NULL AND c.session_id=$1
        AND ($8::text='all' OR c.status=$8)
        AND ($2::boolean OR l.owner_id=$3::uuid OR ($4::boolean AND u.team_id=$5::uuid))
@@ -247,6 +247,7 @@ export async function registerWhatsAppChat(
           text: z.string().trim().max(10000).default(''),
           mediaId: uuid.optional(),
           requestId: uuid,
+          asSticker: z.boolean().optional(),
         })
         .refine((v) => v.text || v.mediaId, 'Escreva uma mensagem ou anexe um arquivo.')
         .parse(req.body);
@@ -305,7 +306,7 @@ export async function registerWhatsAppChat(
             jid,
             req.authUser!.id,
             body.text,
-            media?.media_type ?? 'text',
+            body.asSticker && media?.media_type === 'image' ? 'sticker' : (media?.media_type ?? 'text'),
             media?.storage_key ?? null,
             media?.mime_type ?? null,
             media?.file_name ?? null,
@@ -323,7 +324,7 @@ export async function registerWhatsAppChat(
             media?.storage_key ?? null,
             media?.mime_type ?? null,
             media?.file_name ?? null,
-            media?.media_type ?? null,
+            body.asSticker && media?.media_type === 'image' ? 'sticker' : (media?.media_type ?? null),
           ],
         );
         if (!found)

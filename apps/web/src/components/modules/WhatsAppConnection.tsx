@@ -4,6 +4,7 @@ import { Card, Button } from '@dcfoundry/ui';
 import type { AuthenticatedSession } from '../../pages/LoginPage.js';
 import { useCrmApi } from './useModule.js';
 import { useDialogFocus } from '../useDialogFocus.js';
+import '../whatsapp/whatsapp.css';
 export type Session = {
   id: string;
   provider: string;
@@ -96,7 +97,7 @@ export function WhatsAppConnection({
         <span>Histórico recebido: {session?.history_progress ?? 0}%</span>
         {manage && (
           <div className="module-actions">
-            <Button variant="outline" onClick={() => setOpen(true)}>
+            <Button variant="outline" id="wa-connect-open" onClick={() => setOpen(true)}>
               <QrCode size={16} />
               Conectar
             </Button>

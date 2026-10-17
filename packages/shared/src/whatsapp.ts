@@ -33,7 +33,7 @@ export type WhatsAppCommand = {
   jid?: string;
   text?: string;
   anchor?: { id: string; fromMe: boolean; timestamp: number };
-  media?: { key: string; mime: string; name: string; type: 'image' | 'audio' | 'file' };
+  media?: { key: string; mime: string; name: string; type: 'image' | 'audio' | 'file' | 'sticker' };
 };
 export const WhatsAppMessageInput = z.object({
   externalId: z.string().min(1).max(200),

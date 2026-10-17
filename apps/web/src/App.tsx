@@ -118,6 +118,7 @@ export function App() {
   const [leadQuery, setLeadQuery] = useState('');
   const [archivedLeads, setArchivedLeads] = useState<WorkspaceLead[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [waFocus, setWaFocus] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const workspace = useWorkspace(user);
@@ -156,6 +157,32 @@ export function App() {
     window.addEventListener('keydown', keyboard);
     return () => window.removeEventListener('keydown', keyboard);
   }, [busy]);
+  useEffect(() => {
+    if (!user) return;
+    const onCreate = () => {
+      setEditingId(null);
+      setActionError(null);
+      setCreateOpen(true);
+    };
+    const onPage = (event: Event) => {
+      const next = (event as CustomEvent<WorkspacePage>).detail;
+      if (!next || !canNavigate(user, next)) return;
+      setPage(next);
+    };
+    const onWhatsapp = (event: Event) => {
+      const id = String((event as CustomEvent<string>).detail ?? '');
+      if (id) setWaFocus(id);
+      if (canNavigate(user, 'whatsapp')) setPage('whatsapp');
+    };
+    window.addEventListener('crm:create-lead', onCreate);
+    window.addEventListener('crm:open-page', onPage);
+    window.addEventListener('crm:open-whatsapp', onWhatsapp);
+    return () => {
+      window.removeEventListener('crm:create-lead', onCreate);
+      window.removeEventListener('crm:open-page', onPage);
+      window.removeEventListener('crm:open-whatsapp', onWhatsapp);
+    };
+  }, [user]);
   if (window.location.pathname.startsWith('/assinar/'))
     return (
       <Suspense fallback={<p>Carregando documento…</p>}>
@@ -487,7 +514,9 @@ export function App() {
                 {page === 'finance' && (
                   <RecordsModule kind="invoice" user={user} leads={workspace.leads} />
                 )}
-                {page === 'whatsapp' && <WhatsAppWorkspace user={user} leads={workspace.leads} />}
+                {page === 'whatsapp' && (
+                  <WhatsAppWorkspace user={user} leads={workspace.leads} focusLeadId={waFocus} />
+                )}
                 {page === 'ai_console' && <AssistantWorkspace user={user} />}
                 {page === 'marketing' && <MarketingWorkspace user={user} />}
                 {page === 'audit' && <AuditWorkspace user={user} />}
