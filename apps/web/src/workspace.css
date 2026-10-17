@@ -1777,7 +1777,7 @@ button:disabled {
 /* Clean workspace: no fixture data, with the original Foundry as a daily guide. */
 .clean-shell {
   height: 100dvh;
-  overflow: hidden;
+  overflow: clip;
   display: flex;
   background: var(--bg-page);
 }
