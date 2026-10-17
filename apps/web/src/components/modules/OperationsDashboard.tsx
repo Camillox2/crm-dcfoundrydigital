@@ -151,6 +151,7 @@ function TrendChart({
                 <g key={line.key}>
                   <path
                     className="ops-line"
+                    pathLength={1}
                     fill="none"
                     stroke={line.color}
                     strokeWidth="3"

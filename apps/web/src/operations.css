@@ -144,8 +144,8 @@
   stroke: var(--border-default);
 }
 .ops-line {
-  stroke-dasharray: 1600;
-  stroke-dashoffset: 1600;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
   animation: ops-draw 1.2s ease forwards;
 }
 .ops-legend {
