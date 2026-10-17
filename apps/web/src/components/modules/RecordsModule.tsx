@@ -42,6 +42,53 @@ const definitions: Record<
     defaults: () => Record<string, unknown>;
   }
 > = {
+  project: {
+    label: 'Novo projeto',
+    empty: 'Sua próxima entrega começa aqui.',
+    text: 'Vincule o contato, defina escopo, stack, orçamento, datas e progresso.',
+    fields: [
+      { key: 'title', label: 'Nome do projeto', required: true },
+      { key: 'client', label: 'Cliente / empresa', required: true },
+      {
+        key: 'status',
+        label: 'Etapa',
+        type: 'select',
+        options: ['planning', 'design', 'development', 'review', 'delivered', 'paused'],
+      },
+      {
+        key: 'priority',
+        label: 'Prioridade',
+        type: 'select',
+        options: ['normal', 'high'],
+      },
+      { key: 'startDate', label: 'Início', type: 'date' },
+      { key: 'dueDate', label: 'Entrega prevista', type: 'date' },
+      { key: 'progress', label: 'Progresso (%)', type: 'number' },
+      { key: 'budgetCents', label: 'Orçamento (R$)', type: 'currency' },
+      { key: 'stack', label: 'Tecnologias / stack' },
+      { key: 'url', label: 'URL HTTPS do projeto' },
+      { key: 'scope', label: 'Escopo e entregas', type: 'textarea' },
+      {
+        key: 'notes',
+        label: 'Próximos passos e observações',
+        type: 'textarea',
+      },
+    ],
+    defaults: () => ({
+      title: '',
+      client: '',
+      status: 'planning',
+      priority: 'normal',
+      startDate: today(),
+      dueDate: '',
+      progress: 0,
+      budgetCents: 0,
+      stack: '',
+      url: '',
+      scope: '',
+      notes: '',
+    }),
+  },
   contract: {
     label: 'Nova proposta',
     empty: 'Seu próximo acordo começa aqui.',
@@ -49,8 +96,18 @@ const definitions: Record<
     fields: [
       { key: 'title', label: 'Nome da proposta', required: true },
       { key: 'client', label: 'Cliente / empresa', required: true },
-      { key: 'valueCents', label: 'Investimento (R$)', type: 'currency', required: true },
-      { key: 'billing', label: 'Modelo', type: 'select', options: ['project', 'monthly'] },
+      {
+        key: 'valueCents',
+        label: 'Investimento (R$)',
+        type: 'currency',
+        required: true,
+      },
+      {
+        key: 'billing',
+        label: 'Modelo',
+        type: 'select',
+        options: ['project', 'monthly'],
+      },
       {
         key: 'status',
         label: 'Etapa',
@@ -79,9 +136,19 @@ const definitions: Record<
     fields: [
       { key: 'title', label: 'Descrição', required: true },
       { key: 'client', label: 'Cliente / empresa', required: true },
-      { key: 'amountCents', label: 'Valor (R$)', type: 'currency', required: true },
+      {
+        key: 'amountCents',
+        label: 'Valor (R$)',
+        type: 'currency',
+        required: true,
+      },
       { key: 'dueDate', label: 'Vencimento', type: 'date', required: true },
-      { key: 'status', label: 'Situação', type: 'select', options: ['open', 'paid', 'cancelled'] },
+      {
+        key: 'status',
+        label: 'Situação',
+        type: 'select',
+        options: ['open', 'paid', 'cancelled'],
+      },
       { key: 'paidAt', label: 'Data do recebimento', type: 'date' },
       {
         key: 'method',
@@ -109,8 +176,18 @@ const definitions: Record<
     fields: [
       { key: 'title', label: 'O que precisa ser feito?', required: true },
       { key: 'dueDate', label: 'Data limite', type: 'date' },
-      { key: 'priority', label: 'Prioridade', type: 'select', options: ['normal', 'high'] },
-      { key: 'status', label: 'Situação', type: 'select', options: ['open', 'done'] },
+      {
+        key: 'priority',
+        label: 'Prioridade',
+        type: 'select',
+        options: ['normal', 'high'],
+      },
+      {
+        key: 'status',
+        label: 'Situação',
+        type: 'select',
+        options: ['open', 'done'],
+      },
       { key: 'notes', label: 'Detalhes', type: 'textarea' },
     ],
     defaults: () => ({
@@ -141,7 +218,12 @@ const definitions: Record<
       { key: 'campaignId', label: 'ID da campanha', required: true },
       { key: 'account', label: 'ID da conta' },
       { key: 'date', label: 'Data da métrica', type: 'date', required: true },
-      { key: 'costCents', label: 'Investimento (R$)', type: 'currency', required: true },
+      {
+        key: 'costCents',
+        label: 'Investimento (R$)',
+        type: 'currency',
+        required: true,
+      },
       { key: 'impressions', label: 'Impressões', type: 'number' },
       { key: 'clicks', label: 'Cliques', type: 'number' },
       { key: 'conversions', label: 'Conversões informadas', type: 'number' },
@@ -181,7 +263,12 @@ const definitions: Record<
         type: 'select',
         options: ['direct', 'friendly', 'technical'],
       },
-      { key: 'instructions', label: 'Orientações do assistente', type: 'textarea', required: true },
+      {
+        key: 'instructions',
+        label: 'Orientações do assistente',
+        type: 'textarea',
+        required: true,
+      },
     ],
     defaults: () => ({
       title: 'Foundry',
@@ -223,6 +310,10 @@ export function RecordsModule({
   compact?: boolean;
 }) {
   const def = definitions[kind]!;
+  const labelStatus = (value: string) =>
+    kind === 'project' && value === 'delivered'
+      ? 'Entregue'
+      : (statusLabel[value] ?? optionLabels[value] ?? value);
   const module = useModule(kind, user);
   const [editing, setEditing] = useState<WorkspaceDocument | null | undefined>(),
     [data, setData] = useState<Record<string, unknown>>({}),
@@ -274,6 +365,10 @@ export function RecordsModule({
     const d = record.data as Record<string, unknown>;
     let next = { ...d };
     if (kind === 'task') next.status = d.status === 'done' ? 'open' : 'done';
+    if (kind === 'project') {
+      next.status = 'delivered';
+      next.progress = 100;
+    }
     if (kind === 'invoice') {
       next.status = 'paid';
       next.paidAt = today();
@@ -387,7 +482,7 @@ export function RecordsModule({
             ...(kind === 'invoice' ? ['overdue'] : []),
           ].map((s) => (
             <button type="button" key={s} aria-pressed={filter === s} onClick={() => setFilter(s)}>
-              {s === 'all' ? 'Todos' : s === 'overdue' ? 'Vencidos' : (statusLabel[s] ?? s)}
+              {s === 'all' ? 'Todos' : s === 'overdue' ? 'Vencidos' : labelStatus(s)}
             </button>
           ))}
         </div>
@@ -404,7 +499,7 @@ export function RecordsModule({
           onAction={() => begin()}
         />
       ) : (
-        <div className="record-list">
+        <div className={`record-list${kind === 'project' ? ' ops-project-list' : ''}`}>
           {filtered.map((record) => {
             const d = record.data as Record<string, unknown>;
             return (
@@ -417,7 +512,7 @@ export function RecordsModule({
                     <h3>{String(d.title)}</h3>
                     {Boolean(d.status) && (
                       <Badge tone={d.status === 'paid' || d.status === 'done' ? 'teal' : 'sky'}>
-                        {statusLabel[String(d.status)] ?? String(d.status)}
+                        {labelStatus(String(d.status))}
                       </Badge>
                     )}
                   </div>
@@ -441,6 +536,33 @@ export function RecordsModule({
                   {Boolean(d.content || d.instructions) && (
                     <p className="record-snippet">{String(d.content ?? d.instructions)}</p>
                   )}
+                  {kind === 'project' && (
+                    <div className="ops-project-progress">
+                      <span>{Number(d.progress)}% concluído</span>
+                      <div
+                        role="progressbar"
+                        aria-label={`Progresso de ${String(d.title)}`}
+                        aria-valuenow={Number(d.progress)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
+                        <i style={{ width: `${Number(d.progress)}%` }} />
+                      </div>
+                      <small>{String(d.stack || 'Stack a definir')}</small>
+                      {Boolean(d.scope) && <p>{String(d.scope)}</p>}
+                      {Boolean(d.url) && (
+                        <a
+                          className="text-button"
+                          href={String(d.url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Abrir projeto ↗
+                        </a>
+                      )}
+                      <strong>{money(Number(d.budgetCents))}</strong>
+                    </div>
+                  )}
                 </div>
                 {(d.amountCents !== undefined ||
                   d.valueCents !== undefined ||
@@ -458,6 +580,7 @@ export function RecordsModule({
                       </Button>
                       {((kind === 'invoice' && d.status === 'open') ||
                         kind === 'task' ||
+                        (kind === 'project' && d.status !== 'delivered') ||
                         (kind === 'contract' && d.status === 'draft')) && (
                         <Button size="sm" onClick={() => void quick(record)}>
                           <Check size={14} />
@@ -467,7 +590,9 @@ export function RecordsModule({
                               ? d.status === 'done'
                                 ? 'Reabrir'
                                 : 'Concluir'
-                              : 'Marcar como enviada'}
+                              : kind === 'project'
+                                ? 'Registrar entrega'
+                                : 'Marcar como enviada'}
                         </Button>
                       )}
                       {kind === 'contract' && (
@@ -528,10 +653,11 @@ export function RecordsModule({
             }}
           >
             {error && <ModuleNotice error>{error}</ModuleNotice>}
-            {leads.length > 0 && ['task', 'contract', 'invoice'].includes(kind) && (
+            {leads.length > 0 && ['task', 'contract', 'invoice', 'project'].includes(kind) && (
               <label>
                 Vincular contato
                 <select
+                  aria-label="Vincular contato"
                   value={leadId}
                   onChange={(e) => {
                     setLeadId(e.target.value);
@@ -562,12 +688,13 @@ export function RecordsModule({
                     />
                   ) : f.type === 'select' ? (
                     <select
+                      aria-label={f.label}
                       value={String(data[f.key] ?? '')}
                       onChange={(e) => setData((v) => ({ ...v, [f.key]: e.target.value }))}
                     >
                       {f.options?.map((o) => (
                         <option key={o} value={o}>
-                          {statusLabel[o] ?? optionLabels[o] ?? o}
+                          {labelStatus(o)}
                         </option>
                       ))}
                     </select>
@@ -582,17 +709,26 @@ export function RecordsModule({
                           ? Number(data[f.key] ?? 0) / 100
                           : String(data[f.key] ?? '')
                       }
-                      onChange={(e) =>
+                      onInput={
+                        f.type === 'date'
+                          ? (e) => {
+                              const value = e.currentTarget.value;
+                              setData((v) => ({ ...v, [f.key]: value }));
+                            }
+                          : undefined
+                      }
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
                         setData((v) => ({
                           ...v,
                           [f.key]:
                             f.type === 'currency'
-                              ? Math.round(Number(e.target.value) * 100)
+                              ? Math.round(Number(value) * 100)
                               : f.type === 'number'
-                                ? Number(e.target.value)
-                                : e.target.value,
-                        }))
-                      }
+                                ? Number(value)
+                                : value,
+                        }));
+                      }}
                     />
                   )}
                 </label>

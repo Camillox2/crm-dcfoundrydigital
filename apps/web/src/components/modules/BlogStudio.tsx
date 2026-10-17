@@ -17,6 +17,7 @@ import {
   BlogInput,
   slugify,
   markdownHtml,
+  contentReadiness,
   type BlogData,
   type WorkspaceDocument,
 } from '@dcfoundry/shared';
@@ -65,6 +66,8 @@ export function BlogStudio({ user }: { user: AuthenticatedSession }) {
       null,
     ),
     [notice, setNotice] = useState('');
+  const [postStatus, setPostStatus] = useState('all');
+  const [postCategory, setPostCategory] = useState('all');
   const content = useRef<HTMLTextAreaElement>(null);
   const [tagsText, setTagsText] = useState('');
   const recoveryKey = `dcf-blog-recovery-${user.userId}`;
@@ -243,7 +246,11 @@ export function BlogStudio({ user }: { user: AuthenticatedSession }) {
                 </small>
                 <h1>{data.title || 'Título do artigo'}</h1>
                 <p className="article-excerpt">{data.excerpt}</p>
-                <div dangerouslySetInnerHTML={{ __html: markdownHtml(data.content) }} />
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: markdownHtml(data.content),
+                  }}
+                />
               </article>
             ) : (
               <>
@@ -308,6 +315,26 @@ export function BlogStudio({ user }: { user: AuthenticatedSession }) {
             )}
           </Card>
           <aside className="blog-editor-aside">
+            <Card className="ops-editor-readiness">
+              <h3>Preparação editorial · {contentReadiness(data).score}%</h3>
+              <p>Revisão de conteúdo e preenchimento. Não prevê posição na busca.</p>
+              {contentReadiness(data).checks.map((item) => (
+                <div key={item.label}>
+                  <span data-ready={item.ok}>{item.ok ? '✓' : '○'}</span>
+                  {item.label}
+                </div>
+              ))}
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  change('seoTitle', data.title.slice(0, 70));
+                  change('seoDescription', data.excerpt.slice(0, 180));
+                }}
+              >
+                Usar título e resumo nos campos SEO
+              </button>
+            </Card>
             <Card>
               <h3>Publicação</h3>
               <Badge tone="sky">{statusLabel[data.status]}</Badge>
@@ -458,7 +485,16 @@ export function BlogStudio({ user }: { user: AuthenticatedSession }) {
         )}
       </div>
     );
-  const posts = module.items as WorkspaceDocument<BlogData>[];
+  const allPosts = module.items as WorkspaceDocument<BlogData>[];
+  const effectiveStatus = (post: WorkspaceDocument<BlogData>) =>
+    post.data.status === 'scheduled' && Date.parse(post.data.scheduledAt) <= Date.now()
+      ? 'published'
+      : post.data.status;
+  const posts = allPosts.filter(
+    (post) =>
+      (postStatus === 'all' || effectiveStatus(post) === postStatus) &&
+      (postCategory === 'all' || post.data.category === postCategory),
+  );
   return (
     <div className="module-workspace">
       {recovery && (
@@ -521,13 +557,84 @@ export function BlogStudio({ user }: { user: AuthenticatedSession }) {
           Sincronizar site
         </button>
       </div>
+      <div className="ops-editor-toolbar">
+        <div className="module-tabs" aria-label="Estado dos artigos">
+          {[
+            ['all', 'Todos'],
+            ['draft', 'Rascunhos'],
+            ['scheduled', 'Agendados'],
+            ['published', 'Publicados'],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              aria-pressed={postStatus === value}
+              onClick={() => setPostStatus(value ?? 'all')}
+            >
+              {label} (
+              {value === 'all'
+                ? allPosts.length
+                : allPosts.filter((p) => effectiveStatus(p) === value).length}
+              )
+            </button>
+          ))}
+        </div>
+        <label>
+          Categoria
+          <select
+            aria-label="Filtrar artigos por categoria"
+            value={postCategory}
+            onChange={(e) => setPostCategory(e.target.value)}
+          >
+            <option value="all">Todas</option>
+            {[...new Set(allPosts.map((p) => p.data.category))].map((category) => (
+              <option key={category}>{category}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Começar com modelo
+          <select
+            aria-label="Modelo de artigo"
+            value=""
+            onChange={(e) => {
+              const kind = e.target.value;
+              if (!kind) return;
+              begin();
+              const title =
+                kind === 'case'
+                  ? 'Como construímos: nome do projeto'
+                  : kind === 'guide'
+                    ? 'Guia prático: tema do artigo'
+                    : 'Checklist: tema do artigo';
+              const content =
+                kind === 'case'
+                  ? '## O desafio\n\nDescreva o problema real do cliente.\n\n## O que construímos\n\nExplique as decisões e a stack utilizada.\n\n## Resultados observados\n\nRegistre apenas resultados que podem ser comprovados.\n\n## Próximos passos\n\nExplique como o produto pode evoluir.'
+                  : kind === 'guide'
+                    ? '## Para quem é este guia\n\nDescreva a necessidade e o público.\n\n## O que você precisa saber\n\nApresente o contexto.\n\n## Passo a passo\n\n- Primeiro passo\n- Segundo passo\n\n## Exemplos e referências\n\nInclua fontes verificáveis.\n\n## Próximo passo\n\nConvide o leitor a conhecer uma solução relacionada.'
+                    : '## Antes de começar\n\nExplique o objetivo deste checklist.\n\n## O que conferir\n\n- Primeiro item\n- Segundo item\n- Terceiro item\n\n## Como avaliar o resultado\n\nDescreva os critérios e as próximas ações.';
+              setData({ ...initial, title, slug: slugify(title), content });
+            }}
+          >
+            <option value="">Escolher modelo...</option>
+            <option value="case">Case de projeto</option>
+            <option value="guide">Guia prático</option>
+            <option value="checklist">Checklist</option>
+          </select>
+        </label>
+      </div>
       {(error || module.error) && <ModuleNotice error>{error || module.error}</ModuleNotice>}
       {notice && <ModuleNotice>{notice}</ModuleNotice>}
       {module.loading ? (
         <p role="status">Carregando artigos...</p>
       ) : !posts.length ? (
         <ModuleEmpty
-          title={module.archived ? 'Nenhum artigo arquivado.' : 'Seu próximo conteúdo começa aqui.'}
+          title={
+            allPosts.length
+              ? 'Nenhum artigo neste filtro.'
+              : module.archived
+                ? 'Nenhum artigo arquivado.'
+                : 'Seu próximo conteúdo começa aqui.'
+          }
           text="Crie um artigo, salve como rascunho e confira a prévia antes de publicar."
           action="Criar meu primeiro artigo"
           onAction={() => begin()}
@@ -546,7 +653,7 @@ export function BlogStudio({ user }: { user: AuthenticatedSession }) {
               )}
               <div>
                 <div className="blog-card-meta">
-                  <Badge tone="sky">{statusLabel[post.data.status]}</Badge>
+                  <Badge tone="sky">{statusLabel[effectiveStatus(post)]}</Badge>
                   <span>{new Date(post.updatedAt).toLocaleDateString('pt-BR')}</span>
                 </div>
                 <h3>{post.data.title}</h3>

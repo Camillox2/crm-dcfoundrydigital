@@ -22,6 +22,7 @@ import {
 } from './plugins/auth.js';
 import { ImmutableAuditService } from './plugins/audit.js';
 import { registerModuleRoutes } from './module-routes.js';
+import { registerReportingRoutes } from './reporting-routes.js';
 import { WorkspaceError } from './module-store.js';
 
 export interface DemoUserRecord {
@@ -93,6 +94,7 @@ export async function buildApiServer(
     return db ? new PostgresWorkspaceStore(db.pool) : null;
   };
   await registerModuleRoutes(app, database);
+  await registerReportingRoutes(app, database);
   app.addHook('onClose', async () => {
     if (connection) await (await connection).pool.end();
   });

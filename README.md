@@ -4,6 +4,14 @@ Workspace com a identidade do site DC Foundry Digital: azul, ondas suaves, Found
 
 ## Nesta revisão
 
+- Central de operação com gráficos por período, comparação anterior, pipeline, caixa, campanhas, tarefas e pendências, com CSV e tabelas de valores.
+- Relatórios por área, com escopo de usuário/equipe, dados reais e lacunas explícitas quando faltam métricas do Ads.
+- Projetos e entregas com progresso, orçamento, prazo, stack, escopo, vínculo com contato e histórico.
+- Agenda mensal, filtro por dia, tarefas atrasadas, conclusão e reabertura.
+- Central Site & SEO com gerador de UTM, páginas de destino por serviço, conexões, verificação HTTP sob demanda e calendário editorial.
+- Modelos e filtros para o blog, além de revisão de preparação editorial durante a escrita.
+- Receptores autenticados para eventos e formulários do site, com prevenção de duplicação por UUID. A configuração nos dois servidores é descrita em [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
+
 - Visão geral sem dados fictícios, com indicadores derivados das oportunidades cadastradas.
 - Contatos com busca, edição, avanço no funil, arquivamento e restauração, com persistência PostgreSQL e escopo por usuário/equipe.
 - Agenda com tarefas, datas, prioridades, conclusão e reabertura.

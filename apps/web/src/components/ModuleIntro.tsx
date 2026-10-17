@@ -7,10 +7,37 @@ import {
   TrendingUp,
   Wallet,
   Workflow,
+  CalendarDays,
+  Layers,
+  Globe,
 } from 'lucide-react';
 import { Mark } from '@dcfoundry/ui';
 
 const modules = {
+  reports: {
+    title: 'Dados conectados.',
+    accent: 'Próximos passos claros.',
+    text: 'Compare períodos, acompanhe a operação e consulte os registros de cada área.',
+    icon: TrendingUp,
+  },
+  projects: {
+    title: 'Da proposta',
+    accent: 'à entrega.',
+    text: 'Acompanhe escopo, prazos, orçamento, stack e andamento de cada projeto.',
+    icon: Layers,
+  },
+  agenda: {
+    title: 'Cada compromisso.',
+    accent: 'No seu tempo.',
+    text: 'Organize tarefas, encontre atrasos e acompanhe as próximas entregas no calendário.',
+    icon: CalendarDays,
+  },
+  site: {
+    title: 'Site, conteúdo',
+    accent: 'e aquisição.',
+    text: 'Cuide dos destinos das campanhas, das publicações e das conexões com o CRM.',
+    icon: Globe,
+  },
   kanban: {
     title: 'Cada oportunidade.',
     accent: 'Um próximo passo.',

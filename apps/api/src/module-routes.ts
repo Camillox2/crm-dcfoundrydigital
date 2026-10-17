@@ -153,13 +153,18 @@ export async function registerModuleRoutes(app: FastifyInstance, database: Datab
     gemini: Boolean(process.env.GEMINI_API_KEY),
     blogSync: Boolean(process.env.BLOG_SITE_WEBHOOK_URL && process.env.BLOG_REVALIDATE_SECRET),
     adsIngest: Boolean(process.env.CRM_ADS_INGEST_TOKEN),
+    siteEvents: Boolean(
+      process.env.CRM_SITE_INGEST_TOKEN &&
+        process.env.CRM_SITE_INGEST_TOKEN.length >= 32 &&
+        uuid.safeParse(process.env.CRM_SITE_OWNER_ID).success,
+    ),
     siteUrl: process.env.CRM_SITE_URL ?? 'https://dcfoundrydigital.com',
     whatsapp: 'manual',
   }));
   app.get('/api/v1/workspace/daily-summary', { preHandler: [requireSession] }, async (req) => {
     const store = await repo();
     const result: Record<string, number> = {};
-    for (const kind of ['task', 'invoice', 'contract', 'blog', 'campaign'] as const) {
+    for (const kind of ['task', 'project', 'invoice', 'contract', 'blog', 'campaign'] as const) {
       const granted = resolveGrantedScope(
         req.authUser!.roles,
         `${moduleResources[kind]}:read` as PermissionKey,

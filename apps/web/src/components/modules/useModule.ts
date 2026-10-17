@@ -115,28 +115,32 @@ export function useModule(kind: ModuleKind, user: AuthenticatedSession) {
     reload,
   };
 }
-export function downloadCsv(name: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) return;
+export function csvText(rows: Record<string, unknown>[]) {
   const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))];
   const cell = (v: unknown) => {
-    let text = typeof v === 'object' ? JSON.stringify(v) : String(v ?? '');
+    let text = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
     if (/^\s*[=+@-]/.test(text)) text = "'" + text;
     return '"' + text.replaceAll('"', '""') + '"';
   };
-  const blob = new Blob(
+  return (
+    '\uFEFF' +
     [
-      '\uFEFF' +
-        [
-          columns.map(cell).join(';'),
-          ...rows.map((row) => columns.map((c) => cell(row[c])).join(';')),
-        ].join('\r\n'),
-    ],
-    { type: 'text/csv;charset=utf-8' },
+      columns.map(cell).join(';'),
+      ...rows.map((row) => columns.map((c) => cell(row[c])).join(';')),
+    ].join('\r\n')
   );
+}
+export function downloadCsv(name: string, rows: Record<string, unknown>[]) {
+  if (!rows.length) return;
+  const blob = new Blob([csvText(rows)], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob),
     a = document.createElement('a');
   a.href = url;
   a.download = name;
+  a.style.display = 'none';
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  // Give the browser time to start reading the Blob before releasing it.
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

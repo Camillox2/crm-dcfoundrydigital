@@ -14,6 +14,8 @@ export const CreateWorkspaceLeadSchema = z.object({
   monthlyValue: z.number().finite().min(0).max(100_000_000).default(0),
   notes: z.string().trim().max(4000).default(''),
   highPriority: z.boolean().default(false),
+  campaign: z.string().trim().max(150).optional(),
+  gclid: z.string().trim().max(200).optional(),
 });
 export type WorkspaceLeadInput = z.infer<typeof CreateWorkspaceLeadSchema>;
 export interface WorkspaceLead extends WorkspaceLeadInput {
@@ -36,7 +38,12 @@ export type WorkspacePage =
   | 'ai_console'
   | 'marketing'
   | 'blog'
-  | 'audit';
+  | 'audit'
+  | 'reports'
+  | 'projects'
+  | 'agenda'
+  | 'site';
+// Each surface still uses the existing role and owner/team boundaries.
 export interface DailyInsight {
   id: string;
   title: string;

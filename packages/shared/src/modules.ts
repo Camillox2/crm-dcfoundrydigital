@@ -30,6 +30,7 @@ export const ModuleKindSchema = z.enum([
   'knowledge',
   'assistant',
   'conversation',
+  'project',
 ]);
 export type ModuleKind = z.infer<typeof ModuleKindSchema>;
 export const moduleResources: Record<ModuleKind, ResourceName> = {
@@ -42,6 +43,7 @@ export const moduleResources: Record<ModuleKind, ResourceName> = {
   knowledge: 'ai_agent',
   assistant: 'ai_agent',
   conversation: 'ai_agent',
+  project: 'task',
 };
 export const BlogInput = z
   .object({
@@ -71,7 +73,11 @@ export const BlogInput = z
         message: 'Escreva pelo menos 20 caracteres para publicar.',
       });
     if (v.status !== 'draft' && v.coverUrl && !v.coverAlt)
-      ctx.addIssue({ code: 'custom', path: ['coverAlt'], message: 'Descreva a imagem de capa.' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['coverAlt'],
+        message: 'Descreva a imagem de capa.',
+      });
     if (
       v.status === 'scheduled' &&
       (!v.scheduledAt || Date.parse(v.scheduledAt) < Date.now() + 30000)
@@ -107,7 +113,11 @@ export const InvoiceInput = z
   })
   .superRefine((v, c) => {
     if (v.status === 'paid' && !v.paidAt)
-      c.addIssue({ code: 'custom', path: ['paidAt'], message: 'Informe a data do recebimento.' });
+      c.addIssue({
+        code: 'custom',
+        path: ['paidAt'],
+        message: 'Informe a data do recebimento.',
+      });
   });
 export const TaskInput = z.object({
   title: short.min(3),
@@ -121,6 +131,36 @@ export const TemplateInput = z.object({
   content: z.string().trim().min(2).max(4000),
   category: short.default('Atendimento'),
 });
+export const ProjectInput = z
+  .object({
+    title: short.min(3),
+    client: short.min(2),
+    status: z
+      .enum(['planning', 'design', 'development', 'review', 'delivered', 'paused'])
+      .default('planning'),
+    priority: z.enum(['normal', 'high']).default('normal'),
+    startDate: optionalDate,
+    dueDate: optionalDate,
+    progress: z.number().int().min(0).max(100).default(0),
+    budgetCents: z.number().int().min(0).max(1e11).default(0),
+    stack: z.string().trim().max(1000).default(''),
+    url: z
+      .string()
+      .trim()
+      .max(2048)
+      .refine((v) => !v || /^https:\/\//.test(v), 'Use uma URL HTTPS.')
+      .default(''),
+    scope: text,
+    notes: text,
+  })
+  .superRefine((v, c) => {
+    if (v.startDate && v.dueDate && v.dueDate < v.startDate)
+      c.addIssue({
+        code: 'custom',
+        path: ['dueDate'],
+        message: 'A entrega deve ser posterior ao início.',
+      });
+  });
 export const CampaignInput = z.object({
   title: short.min(2),
   campaignId: short.min(1),
@@ -145,7 +185,12 @@ export const AssistantInput = z.object({
 export const ConversationInput = z.object({
   title: short.min(1),
   messages: z
-    .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(12000) }))
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string().max(12000),
+      }),
+    )
     .max(30),
 });
 export const moduleSchemas = {
@@ -158,12 +203,14 @@ export const moduleSchemas = {
   knowledge: KnowledgeInput,
   assistant: AssistantInput,
   conversation: ConversationInput,
+  project: ProjectInput,
 };
 export type BlogData = z.infer<typeof BlogInput>;
 export type ContractData = z.infer<typeof ContractInput>;
 export type InvoiceData = z.infer<typeof InvoiceInput>;
 export type TaskData = z.infer<typeof TaskInput>;
 export type CampaignData = z.infer<typeof CampaignInput>;
+export type ProjectData = z.infer<typeof ProjectInput>;
 export type ModuleData = z.infer<(typeof moduleSchemas)[ModuleKind]>;
 export interface WorkspaceDocument<T = ModuleData> {
   id: string;

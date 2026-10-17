@@ -457,6 +457,187 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
             })
           ).statusCode,
         ).toBe(401);
+        // Exercise the actual database-backed report, project and intake paths.
+        const project = await app.inject({
+          method: 'POST',
+          url: '/api/v1/workspace/project',
+          headers: admin,
+          payload: {
+            data: {
+              title: 'CI project',
+              client: 'CI client',
+              progress: 35,
+              stack: 'React, Node.js',
+              status: 'development',
+            },
+          },
+        });
+        expect(project.statusCode, project.body).toBe(201);
+        const otherLead = await store.create(
+          {
+            name: 'Other owner',
+            company: 'Other owner company',
+            phone: '+5541999999999',
+            scopeSummary: '',
+            modality: 'Projeto Fechado',
+            monthlyValue: 777,
+            notes: '',
+            highPriority: false,
+          },
+          other,
+        );
+        await new ModuleStore(pool).save(
+          'project',
+          { id: other, teamId: null, scope: 'own' },
+          {
+            title: 'Other owner project',
+            client: 'Other owner company',
+            status: 'development',
+            priority: 'normal',
+            progress: 5,
+            startDate: '',
+            dueDate: '',
+            budgetCents: 0,
+            scope: '',
+            notes: '',
+            stack: 'Private stack',
+            url: '',
+          },
+          otherLead.id,
+        );
+        const beforeReport = await app.inject({
+          method: 'GET',
+          url: '/api/v1/workspace/report?days=7',
+          headers: admin,
+        });
+        expect(beforeReport.statusCode, beforeReport.body).toBe(200);
+        expect(beforeReport.json().totals.activeProjects).toBe(2);
+        expect(beforeReport.json().projects.some((p: any) => p.stack === 'React, Node.js')).toBe(
+          true,
+        );
+        const vendorReport = await app.inject({
+          method: 'GET',
+          url: '/api/v1/workspace/report?days=30',
+          headers,
+        });
+        expect(vendorReport.statusCode, vendorReport.body).toBe(200);
+        expect(vendorReport.json().access.invoice).toBe(false);
+        expect(vendorReport.json().totals.receivedCents).toBe(0);
+        expect(vendorReport.json().coverage.leads).toBe(
+          (await store.list({ id: owner, teamId: null, scope: 'own' })).length,
+        );
+        expect(vendorReport.json().projects.some((p: any) => p.stack === 'Private stack')).toBe(
+          false,
+        );
+        expect(
+          (await app.inject({ method: 'GET', url: '/api/v1/workspace/report' })).statusCode,
+        ).toBe(401);
+        expect(
+          (
+            await app.inject({
+              method: 'GET',
+              url: '/api/v1/workspace/report?days=1000',
+              headers: admin,
+            })
+          ).statusCode,
+        ).toBe(400);
+        const savedSiteToken = process.env.CRM_SITE_INGEST_TOKEN,
+          savedSiteOwner = process.env.CRM_SITE_OWNER_ID;
+        process.env.CRM_SITE_INGEST_TOKEN = randomUUID() + randomUUID();
+        process.env.CRM_SITE_OWNER_ID = owner;
+        try {
+          const siteHeaders = { authorization: `Bearer ${process.env.CRM_SITE_INGEST_TOKEN}` };
+          const event = {
+            id: randomUUID(),
+            event: 'page_view',
+            path: '/blog',
+            source: 'google',
+            medium: 'organic',
+            campaign: '',
+            occurredAt: new Date().toISOString(),
+          };
+          expect(
+            (
+              await app.inject({
+                method: 'POST',
+                url: '/api/v1/integrations/site/events',
+                payload: { items: [event] },
+              })
+            ).statusCode,
+          ).toBe(401);
+          const firstEvent = await app.inject({
+            method: 'POST',
+            url: '/api/v1/integrations/site/events',
+            headers: siteHeaders,
+            payload: { items: [event] },
+          });
+          expect(firstEvent.statusCode, firstEvent.body).toBe(200);
+          expect(firstEvent.json().accepted).toBe(1);
+          expect(
+            (
+              await app.inject({
+                method: 'POST',
+                url: '/api/v1/integrations/site/events',
+                headers: siteHeaders,
+                payload: { items: [event] },
+              })
+            ).json().duplicates,
+          ).toBe(1);
+          expect(
+            (
+              await app.inject({
+                method: 'POST',
+                url: '/api/v1/integrations/site/events',
+                headers: siteHeaders,
+                payload: { items: [{ ...event, id: randomUUID(), path: '/blog?phone=123' }] },
+              })
+            ).statusCode,
+          ).toBe(400);
+          const submission = {
+            id: randomUUID(),
+            lead: {
+              name: 'Website test',
+              company: 'Site test',
+              phone: '+5541999999999',
+              campaign: 'blog-ci',
+              scopeSummary: 'Briefing de integração',
+            },
+          };
+          const intake = await app.inject({
+            method: 'POST',
+            url: '/api/v1/integrations/site/leads',
+            headers: siteHeaders,
+            payload: submission,
+          });
+          expect(intake.statusCode, intake.body).toBe(201);
+          const duplicate = await app.inject({
+            method: 'POST',
+            url: '/api/v1/integrations/site/leads',
+            headers: siteHeaders,
+            payload: submission,
+          });
+          expect(duplicate.json()).toMatchObject({ id: intake.json().id, duplicate: true });
+          expect(
+            (
+              await pool.query('SELECT campaign FROM workspace_leads WHERE id=$1', [
+                intake.json().id,
+              ])
+            ).rows[0].campaign,
+          ).toBe('blog-ci');
+          const afterReport = await app.inject({
+            method: 'GET',
+            url: '/api/v1/workspace/report?days=7',
+            headers: admin,
+          });
+          expect(afterReport.statusCode, afterReport.body).toBe(200);
+          expect(afterReport.json().totals.pageViews).toBe(1);
+          expect(afterReport.json().coverage.leads).toBe(beforeReport.json().coverage.leads + 1);
+        } finally {
+          if (savedSiteToken === undefined) delete process.env.CRM_SITE_INGEST_TOKEN;
+          else process.env.CRM_SITE_INGEST_TOKEN = savedSiteToken;
+          if (savedSiteOwner === undefined) delete process.env.CRM_SITE_OWNER_ID;
+          else process.env.CRM_SITE_OWNER_ID = savedSiteOwner;
+        }
       } finally {
         await app.close();
       }
@@ -523,6 +704,14 @@ it.skipIf(!process.env.CRM_TEST_DATABASE_URL)(
       expect(backup.database).toBe(database);
       expect(backup.tables.workspace_leads[0].id).toBe(item.id);
     } finally {
+      await pool.query('DELETE FROM workspace_site_intakes WHERE owner_id IN ($1,$2)', [
+        owner,
+        other,
+      ]);
+      await pool.query('DELETE FROM workspace_site_events WHERE owner_id IN ($1,$2)', [
+        owner,
+        other,
+      ]);
       await pool.query('DELETE FROM workspace_documents WHERE owner_id IN ($1,$2)', [owner, other]);
       await pool.query('DELETE FROM workspace_leads WHERE owner_id IN ($1,$2)', [owner, other]);
       await pool.query('DELETE FROM users WHERE id IN ($1,$2)', [owner, other]);

@@ -51,7 +51,7 @@ export function FloatingFoundry({
         ? `${summary.taskOverdue} estão com prazo vencido. Confira sua agenda.`
         : 'Sua agenda tem próximos passos em aberto.',
       action: 'Abrir agenda',
-      page: 'dashboard',
+      page: 'agenda',
       tone: summary.taskOverdue ? 'priority' : 'info',
     });
   if (summary.invoicePending)
@@ -64,6 +64,15 @@ export function FloatingFoundry({
       action: 'Ver financeiro',
       page: 'finance',
       tone: summary.invoiceOverdue ? 'priority' : 'info',
+    });
+  if (summary.project)
+    insights.push({
+      id: 'daily-projects',
+      title: `${summary.project} projetos no workspace.`,
+      detail: 'Confira andamento, stack e as próximas entregas.',
+      action: 'Ver projetos',
+      page: 'projects',
+      tone: 'info',
     });
   if (summary.blogPending)
     insights.push({

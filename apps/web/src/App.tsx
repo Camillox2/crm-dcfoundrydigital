@@ -20,7 +20,6 @@ import {
 } from '@dcfoundry/shared';
 import { LoginPage, type AuthenticatedSession } from './pages/LoginPage.js';
 import { WorkspaceShell, allNavigation, canNavigate } from './components/WorkspaceShell.js';
-import { Overview } from './components/Overview.js';
 import { ModuleIntro } from './components/ModuleIntro.js';
 import { FloatingFoundry } from './components/FloatingFoundry.js';
 import { ContactAvatar } from './components/ContactAvatar.js';
@@ -29,12 +28,17 @@ import { useDialogFocus } from './components/useDialogFocus.js';
 import '@dcfoundry/ui/tokens.css';
 import './workspace.css';
 import './modules.css';
+import './operations.css';
 import { downloadCsv } from './components/modules/useModule.js';
 const BlogStudio = lazy(() =>
-  import('./components/modules/BlogStudio.js').then((m) => ({ default: m.BlogStudio })),
+  import('./components/modules/BlogStudio.js').then((m) => ({
+    default: m.BlogStudio,
+  })),
 );
 const RecordsModule = lazy(() =>
-  import('./components/modules/RecordsModule.js').then((m) => ({ default: m.RecordsModule })),
+  import('./components/modules/RecordsModule.js').then((m) => ({
+    default: m.RecordsModule,
+  })),
 );
 const WhatsAppWorkspace = lazy(() =>
   import('./components/modules/CommunicationModules.js').then((m) => ({
@@ -52,7 +56,24 @@ const MarketingWorkspace = lazy(() =>
   })),
 );
 const AuditWorkspace = lazy(() =>
-  import('./components/modules/AuditWorkspace.js').then((m) => ({ default: m.AuditWorkspace })),
+  import('./components/modules/AuditWorkspace.js').then((m) => ({
+    default: m.AuditWorkspace,
+  })),
+);
+const OperationsDashboard = lazy(() =>
+  import('./components/modules/OperationsDashboard.js').then((m) => ({
+    default: m.OperationsDashboard,
+  })),
+);
+const SiteWorkspace = lazy(() =>
+  import('./components/modules/SiteWorkspace.js').then((m) => ({
+    default: m.SiteWorkspace,
+  })),
+);
+const AgendaWorkspace = lazy(() =>
+  import('./components/modules/AgendaWorkspace.js').then((m) => ({
+    default: m.AgendaWorkspace,
+  })),
 );
 
 const stages = [
@@ -150,6 +171,7 @@ export function App() {
       monthlyValue: Number(form.get('monthlyValue') || 0),
       modality: form.get('modality'),
       notes: form.get('notes'),
+      campaign: String(form.get('campaign') ?? ''),
       highPriority: form.get('highPriority') === 'on',
     });
     if (!parsed.success) {
@@ -210,15 +232,12 @@ export function App() {
               <Suspense fallback={<p role="status">Abrindo ferramentas do workspace...</p>}>
                 {page === 'dashboard' && (
                   <>
-                    <Overview
+                    <OperationsDashboard
+                      user={user}
                       leads={workspace.leads}
-                      loading={workspace.loading}
                       onOpenLead={openLead}
                       onNavigate={navigate}
                     />
-                    {(user.preview || resolveGrantedScope(user.roles, 'task:read')) && (
-                      <RecordsModule kind="task" user={user} leads={workspace.leads} compact />
-                    )}
                   </>
                 )}
                 {page === 'kanban' && (
@@ -385,6 +404,14 @@ export function App() {
                 {page === 'ai_console' && <AssistantWorkspace user={user} />}
                 {page === 'marketing' && <MarketingWorkspace user={user} />}
                 {page === 'audit' && <AuditWorkspace user={user} />}
+                {page === 'reports' && (
+                  <OperationsDashboard user={user} onNavigate={navigate} full />
+                )}
+                {page === 'site' && <SiteWorkspace user={user} onNavigate={navigate} />}
+                {page === 'projects' && (
+                  <RecordsModule kind="project" user={user} leads={workspace.leads} />
+                )}
+                {page === 'agenda' && <AgendaWorkspace user={user} leads={workspace.leads} />}
               </Suspense>
             </motion.div>
           </AnimatePresence>
@@ -650,6 +677,15 @@ export function App() {
                       />
                     </label>
                   </div>
+                  <label>
+                    Origem / campanha
+                    <input
+                      name="campaign"
+                      defaultValue={editingLead?.campaign}
+                      maxLength={150}
+                      placeholder="Google Ads, indicação, blog, campanha..."
+                    />
+                  </label>
                   <label>
                     Notas
                     <textarea

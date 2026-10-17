@@ -5,3 +5,4 @@ export * from './schemas/auth.schema.js';
 export * from './schemas/audit.schema.js';
 export * from './workspace.js';
 export * from './modules.js';
+export * from './reporting.js';

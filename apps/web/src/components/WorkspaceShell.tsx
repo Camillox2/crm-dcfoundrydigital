@@ -19,6 +19,10 @@ import {
   Sparkles,
   Sun,
   X,
+  CalendarDays,
+  Layers,
+  Globe,
+  LineChart,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DcLogo, useTheme } from '@dcfoundry/ui';
@@ -33,6 +37,8 @@ export const navigation = [
       { id: 'kanban', label: 'Funil & leads', icon: KanbanSquare },
       { id: 'contracts', label: 'Propostas & contratos', icon: FileSignature },
       { id: 'finance', label: 'Financeiro', icon: CreditCard },
+      { id: 'projects', label: 'Projetos & entregas', icon: Layers },
+      { id: 'agenda', label: 'Agenda & tarefas', icon: CalendarDays },
     ],
   },
   {
@@ -46,6 +52,8 @@ export const navigation = [
     title: 'Gestão',
     items: [
       { id: 'marketing', label: 'Marketing & Ads', icon: BarChart3 },
+      { id: 'reports', label: 'Relatórios & gráficos', icon: LineChart },
+      { id: 'site', label: 'Site & SEO', icon: Globe },
       { id: 'blog', label: 'Blog & conteúdo', icon: BookOpen },
       { id: 'audit', label: 'Auditoria', icon: ShieldCheck },
     ],
@@ -62,8 +70,19 @@ const pageReadPermission: Record<WorkspacePage, PermissionKey> = {
   marketing: 'marketing_ads:read',
   blog: 'blog:read',
   audit: 'audit_log:read',
+  reports: 'lead:read',
+  projects: 'task:read',
+  agenda: 'task:read',
+  site: 'marketing_ads:read',
 };
 export function canNavigate(user: AuthenticatedSession, page: WorkspacePage) {
+  if (page === 'reports')
+    return Boolean(
+      user.preview ||
+        ['lead:read', 'finance:read', 'task:read', 'blog:read', 'marketing_ads:read'].some(
+          (permission) => resolveGrantedScope(user.roles, permission as PermissionKey),
+        ),
+    );
   return Boolean(user.preview || resolveGrantedScope(user.roles, pageReadPermission[page]));
 }
 

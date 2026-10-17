@@ -21,7 +21,7 @@ export interface WorkspaceStore {
     actor: WorkspaceActor,
   ): Promise<WorkspaceLead | null>;
 }
-const columns = `id, name, company, phone, scope_summary AS "scopeSummary", modality, monthly_value AS "monthlyValue", notes, high_priority AS "highPriority", stage, avatar_url AS "avatarUrl", created_at AS "createdAt", updated_at AS "updatedAt"`;
+const columns = `id, name, company, phone, scope_summary AS "scopeSummary", modality, monthly_value AS "monthlyValue", notes, high_priority AS "highPriority", stage, campaign, gclid, avatar_url AS "avatarUrl", created_at AS "createdAt", updated_at AS "updatedAt"`;
 const access = `($1::boolean OR owner_id=$2::uuid OR ($3::boolean AND owner_id IN (SELECT id FROM users WHERE team_id=$4::uuid)))`;
 const actorValues = (actor: WorkspaceActor) => [
   actor.scope === 'all',
@@ -35,8 +35,8 @@ function toLead(row: Record<string, unknown>): WorkspaceLead {
     monthlyValue: Number(row.monthlyValue),
     score: 0,
     temperature: 'Frio',
-    campaign: '',
-    gclid: '',
+    campaign: String(row.campaign ?? ''),
+    gclid: String(row.gclid ?? ''),
     createdAt: new Date(row.createdAt as string).toISOString(),
     updatedAt: new Date(row.updatedAt as string).toISOString(),
   } as WorkspaceLead;
@@ -73,7 +73,7 @@ export class PostgresWorkspaceStore implements WorkspaceStore {
     const result = await this.change(
       ownerId,
       'lead.create',
-      `INSERT INTO workspace_leads (owner_id,name,company,phone,scope_summary,modality,monthly_value,notes,high_priority) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${columns}`,
+      `INSERT INTO workspace_leads (owner_id,name,company,phone,scope_summary,modality,monthly_value,notes,high_priority,campaign,gclid) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING ${columns}`,
       [
         ownerId,
         input.name,
@@ -84,6 +84,8 @@ export class PostgresWorkspaceStore implements WorkspaceStore {
         input.monthlyValue,
         input.notes,
         input.highPriority,
+        input.campaign ?? '',
+        input.gclid ?? '',
       ],
     );
     return toLead(result.rows[0]);
@@ -101,7 +103,7 @@ export class PostgresWorkspaceStore implements WorkspaceStore {
     const r = await this.change(
       actor.id,
       'lead.update',
-      `UPDATE workspace_leads SET name=$6,company=$7,phone=$8,scope_summary=$9,modality=$10,monthly_value=$11,notes=$12,high_priority=$13,updated_at=now() WHERE ${access} AND id=$5 AND archived_at IS NULL RETURNING ${columns}`,
+      `UPDATE workspace_leads SET name=$6,company=$7,phone=$8,scope_summary=$9,modality=$10,monthly_value=$11,notes=$12,high_priority=$13,campaign=COALESCE($14,campaign),gclid=COALESCE($15,gclid),updated_at=now() WHERE ${access} AND id=$5 AND archived_at IS NULL RETURNING ${columns}`,
       [
         ...actorValues(actor),
         id,
@@ -113,6 +115,8 @@ export class PostgresWorkspaceStore implements WorkspaceStore {
         input.monthlyValue,
         input.notes,
         input.highPriority,
+        input.campaign ?? null,
+        input.gclid ?? null,
       ],
     );
     return r.rows[0] ? toLead(r.rows[0]) : null;
