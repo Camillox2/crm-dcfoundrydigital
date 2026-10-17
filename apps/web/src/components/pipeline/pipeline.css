@@ -1,0 +1,150 @@
+.pipe-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.pipe-filters select,
+.pipe-stepper button,
+.pipe-actions button,
+.pipe-move select {
+  min-height: 40px;
+  font: inherit;
+}
+.pipe-column-total {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.kanban-column.is-over {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: -2px;
+}
+.pipe-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+.pipe-card.is-dragging {
+  opacity: 0.45;
+}
+.pipe-handle {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  cursor: grab;
+}
+.pipe-summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 8px 0 0;
+}
+.pipe-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pipe-actions button {
+  min-width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.pipe-move select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  padding: 0 8px;
+}
+.pipe-stepper {
+  display: none;
+}
+.pipe-track {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 6px;
+}
+.pipe-track button {
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--border-strong);
+  padding: 0;
+}
+.pipe-track button[aria-selected='true'] {
+  background: var(--brand-primary);
+}
+.pipe-stepper-nav {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.pipe-stepper-nav button {
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.pipe-stepper-nav strong,
+.pipe-stepper-nav span {
+  display: block;
+  text-align: center;
+}
+.pipe-stepper-nav span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.pipe-overlay {
+  width: min(280px, 80vw);
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-elevated);
+}
+.pipe-board :focus-visible,
+.pipe-stepper :focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+@media (max-width: 859px) {
+  .kanban-page > .kanban-board {
+    display: none !important;
+  }
+  .pipe-stepper,
+  .pipe-mobile {
+    display: block;
+  }
+}
+@media (min-width: 860px) {
+  .pipe-mobile {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pipe-card {
+    transition: none !important;
+  }
+}
+@media (forced-colors: active) {
+  .kanban-column.is-over,
+  .pipe-track button[aria-selected='true'] {
+    outline: 2px solid CanvasText;
+  }
+}

@@ -34,6 +34,7 @@ export interface WorkspaceLead extends WorkspaceLeadInput {
   campaign: string;
   gclid: string;
   avatarUrl: string | null;
+  aiSummary?: string | null;
   createdAt: string;
   updatedAt: string;
 }

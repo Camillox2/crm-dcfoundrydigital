@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
-  Eye,
   Plus,
   Search,
   X,
@@ -87,6 +86,9 @@ const AuditWorkspace = lazy(() =>
     default: m.AuditWorkspace,
   })),
 );
+const PipelineBoard = lazy(() =>
+  import('./components/pipeline/PipelineBoard.js').then((module) => ({ default: module.PipelineBoard })),
+);
 const OperationsDashboard = lazy(() =>
   import('./components/modules/OperationsDashboard.js').then((m) => ({
     default: m.OperationsDashboard,
@@ -116,6 +118,7 @@ export function App() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [leadQuery, setLeadQuery] = useState('');
+  const [origin, setOrigin] = useState('all');
   const [archivedLeads, setArchivedLeads] = useState<WorkspaceLead[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [waFocus, setWaFocus] = useState<string | undefined>();
@@ -125,11 +128,16 @@ export function App() {
   const stages = workspace.stages;
   const selectedLead = workspace.leads.find((lead) => lead.id === selectedId);
   const editingLead = workspace.leads.find((lead) => lead.id === editingId);
-  const filteredLeads = (showArchived ? archivedLeads : workspace.leads).filter((lead) =>
-    `${lead.name} ${lead.company} ${lead.phone}`
-      .toLocaleLowerCase('pt-BR')
-      .includes(leadQuery.toLocaleLowerCase('pt-BR')),
+  const sourceLeads = showArchived ? archivedLeads : workspace.leads;
+  const origins = [...new Set(sourceLeads.map((lead) => lead.campaign).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, 'pt-BR'),
   );
+  const filteredLeads = sourceLeads.filter((lead) => {
+    const matches = `${lead.name} ${lead.company} ${lead.phone}`
+      .toLocaleLowerCase('pt-BR')
+      .includes(leadQuery.toLocaleLowerCase('pt-BR'));
+    return matches && (origin === 'all' || lead.campaign === origin);
+  });
   useDialogFocus(commandOpen || mobileOpen || createOpen || Boolean(selectedLead));
   useEffect(() => {
     if (user && !canNavigate(user, page)) {
@@ -342,6 +350,17 @@ export function App() {
                           placeholder="Buscar pessoa, empresa ou telefone..."
                         />
                       </label>
+                      <label className="module-filter">
+                        Origem
+                        <select aria-label="Filtrar por origem" value={origin} onChange={(event) => setOrigin(event.target.value)}>
+                          <option value="all">Todas</option>
+                          {origins.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       <button
                         className="module-filter"
                         type="button"
@@ -387,123 +406,28 @@ export function App() {
                       stages={stages}
                       version={workspace.pipelineVersion}
                     />
-                    <div className="kanban-board">
-                      {stages.map((stage) => (
-                        <section
-                          className="kanban-column"
-                          key={stage.id}
-                          onDragOver={(event) => {
-                            if (resolveGrantedScope(user.roles, 'lead:update'))
-                              event.preventDefault();
-                          }}
-                          onDrop={(event) => {
-                            event.preventDefault();
-                            const lead = workspace.leads.find(
-                              (l) => l.id === event.dataTransfer.getData('text/plain'),
-                            );
-                            if (lead)
-                              void workspace
-                                .move(lead, stage.id)
-                                .catch((e) => setActionError(e.message));
-                          }}
-                        >
-                          <header style={{ borderBottomColor: stage.color }}>
-                            <strong>{stage.name}</strong>
-                            <Badge tone={stage.isWon ? 'teal' : stage.isLost ? 'warm' : 'sky'}>
-                              {filteredLeads.filter((lead) => lead.stage === stage.id).length}
-                            </Badge>
-                          </header>
-                          {filteredLeads
-                            .filter((lead) => lead.stage === stage.id)
-                            .map((lead, index) => (
-                              <Card
-                                key={lead.id}
-                                className="lead-card"
-                                draggable={
-                                  !showArchived &&
-                                  Boolean(resolveGrantedScope(user.roles, 'lead:update'))
-                                }
-                                onDragStart={(event) =>
-                                  event.dataTransfer.setData('text/plain', lead.id)
-                                }
-                              >
-                                <div className="lead-card-person">
-                                  <ContactAvatar
-                                    name={lead.name}
-                                    photoUrl={lead.avatarUrl}
-                                    index={index}
-                                  />
-                                  <span>
-                                    <h3>{lead.company}</h3>
-                                    <small>{lead.name}</small>
-                                  </span>
-                                </div>
-                                {lead.highPriority && <Badge tone="warm">Prioridade</Badge>}
-                                {lead.scopeSummary && <p>{lead.scopeSummary}</p>}
-                                <div className="lead-tag-list">
-                                  {lead.tags?.map((tag) => (
-                                    <span key={tag.id} style={{ borderColor: tag.color }}>
-                                      {tag.name}
-                                    </span>
-                                  ))}
-                                </div>
-                                <div className="lead-card-footer">
-                                  <strong>
-                                    {lead.monthlyValue.toLocaleString('pt-BR', {
-                                      style: 'currency',
-                                      currency: 'BRL',
-                                    })}
-                                  </strong>
-                                  <div>
-                                    {showArchived ? (
-                                      <Button
-                                        size="sm"
-                                        onClick={() => {
-                                          void workspace
-                                            .restore(lead.id)
-                                            .then(() => workspace.archived())
-                                            .then(setArchivedLeads)
-                                            .catch((e) => setActionError(e.message));
-                                        }}
-                                      >
-                                        Restaurar contato
-                                      </Button>
-                                    ) : (
-                                      <>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => openLead(lead)}
-                                        >
-                                          <Eye size={14} />
-                                          Ficha
-                                        </Button>
-                                        {!stage.isWon && !stage.isLost && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            disabled={busy}
-                                            onClick={() => void advance(lead)}
-                                          >
-                                            Avançar
-                                            <ArrowRight size={14} />
-                                          </Button>
-                                        )}
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
-                          {!filteredLeads.some((lead) => lead.stage === stage.id) && (
-                            <div className="empty-stage">
-                              <Plus size={22} strokeWidth={1.2} />
-                              <p>As próximas oportunidades desta etapa aparecem aqui.</p>
-                            </div>
-                          )}
-                        </section>
-                      ))}
-                    </div>
+                    <PipelineBoard
+                      user={user}
+                      stages={stages}
+                      leads={filteredLeads}
+                      archived={showArchived}
+                      busy={busy}
+                      onOpen={openLead}
+                      onAdvance={(lead) => void advance(lead)}
+                      onMove={(lead, stageId) => {
+                        void workspace.move(lead, stageId).catch((error) => setActionError(error.message));
+                      }}
+                      onArchive={(lead) => {
+                        void workspace.archive(lead.id).catch((error) => setActionError(error.message));
+                      }}
+                      onRestore={(lead) => {
+                        void workspace
+                          .restore(lead.id)
+                          .then(() => workspace.archived())
+                          .then(setArchivedLeads)
+                          .catch((error) => setActionError(error.message));
+                      }}
+                    />
                   </div>
                 )}
                 {page === 'blog' && <BlogStudio user={user} />}
