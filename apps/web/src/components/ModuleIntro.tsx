@@ -14,6 +14,7 @@ import {
 import { Mark } from '@dcfoundry/ui';
 
 const modules = {
+  settings:{title:'Sua identidade.',accent:'Em um lugar.',text:'Mantenha os dados da contratada para propostas, contratos e contatos.',icon:ShieldCheck},
   reports: {
     title: 'Dados conectados.',
     accent: 'Próximos passos claros.',

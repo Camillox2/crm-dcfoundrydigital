@@ -13,9 +13,12 @@ import {
   type ReportLead,
   type SiteEvent,
   type AuthUserPayload,
+  type ModuleKind,
 } from '@dcfoundry/shared';
 import { requireSession, requirePermission } from './plugins/auth.js';
 import { WorkspaceError } from './module-store.js';
+import { ModuleStore } from './module-store.js';
+import { typedModules } from './typed-module-store.js';
 
 const permissions: Record<keyof ReportAccess, PermissionKey> = {
   lead: 'lead:read',
@@ -106,6 +109,19 @@ export async function registerReportingRoutes(
     let truncated = false;
     const readDocuments = async (kind: keyof ReportAccess) => {
       if (kind === 'lead' || kind === 'site' || !access[kind]) return [];
+      if (typedModules[kind as ModuleKind]) {
+        const grant = reportScope(user, permissions[kind]).grant!;
+        const result = await new ModuleStore(db.pool).list(
+          kind as ModuleKind,
+          { id: user.id, teamId: user.teamId ?? null, scope: grant },
+          false,
+          '',
+          0,
+          CAP + 1,
+        );
+        if (result.total > CAP) truncated = true;
+        return result.items.slice(0, CAP) as unknown as ReportDocument[];
+      }
       const { args } = reportScope(user, permissions[kind]);
       const result = await db.pool.query(
         `SELECT d.id,d.kind,(d.data-'content'-'messages'-'instructions'-'scope'-'notes'-'terms') || jsonb_build_object('contentLength',length(COALESCE(d.data->>'content',''))) AS data,d.created_at AS "createdAt",d.updated_at AS "updatedAt",d.published_at AS "publishedAt",d.sync_status AS "syncStatus" FROM workspace_documents d WHERE ${scope('d')} AND d.kind=$5 AND d.archived_at IS NULL ORDER BY d.created_at DESC,d.id LIMIT ${CAP + 1}`,

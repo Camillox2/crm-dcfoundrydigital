@@ -6,6 +6,7 @@ export const PRESERVED_CONFIGURATION_TABLES = new Set([
   'pipelines',
   'pipeline_stages',
   'foundry_settings',
+  'company_settings',
   'crm_schema_migrations',
   '__drizzle_migrations',
 ]);

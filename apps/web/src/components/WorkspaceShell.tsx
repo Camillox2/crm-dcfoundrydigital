@@ -23,6 +23,7 @@ import {
   Layers,
   Globe,
   LineChart,
+  Settings,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DcLogo, useTheme } from '@dcfoundry/ui';
@@ -56,6 +57,7 @@ export const navigation = [
       { id: 'site', label: 'Site & SEO', icon: Globe },
       { id: 'blog', label: 'Blog & conteúdo', icon: BookOpen },
       { id: 'audit', label: 'Auditoria', icon: ShieldCheck },
+      { id:'settings',label:'Configurações',icon:Settings },
     ],
   },
 ] as const;
@@ -74,6 +76,7 @@ const pageReadPermission: Record<WorkspacePage, PermissionKey> = {
   projects: 'task:read',
   agenda: 'task:read',
   site: 'marketing_ads:read',
+  settings:'settings:read',
 };
 export function canNavigate(user: AuthenticatedSession, page: WorkspacePage) {
   if (page === 'reports')

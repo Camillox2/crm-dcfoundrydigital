@@ -224,6 +224,7 @@ export function useUnsavedChanges(dirty: boolean) {
 export const money = (cents: number) =>
   ((cents || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 export const statusLabel: Record<string, string> = {
+  site_landing:'Site / landing page',system_app:'Sistema / aplicativo',paid_marketing:'Tráfego pago e marketing',maintenance:'Manutenção / suporte',public:'Clientes e equipe',internal:'Somente equipe',
   planning: 'Planejamento',
   design: 'Design',
   development: 'Desenvolvimento',

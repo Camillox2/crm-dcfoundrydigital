@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ResourceName } from './rbac.js';
+import { optionalDocument, ServiceType } from './documents.js';
 
 const short = z.string().trim().max(180);
 const text = z.string().trim().max(12000).default('');
@@ -88,18 +89,31 @@ export const BlogInput = z
         message: 'Escolha um horário futuro.',
       });
   });
-export const ContractInput = z.object({
-  title: short.min(3),
-  client: short.min(2),
-  valueCents: z.number().int().min(0).max(1e11),
-  billing: z.enum(['project', 'monthly']),
-  status: z
-    .enum(['draft', 'sent', 'accepted', 'active', 'completed', 'cancelled'])
-    .default('draft'),
-  scope: text,
-  terms: text,
-  validUntil: optionalDate,
-});
+export const ContractInput = z
+  .object({
+    title: short.min(3),
+    client: short.min(2),
+    clientDocument: optionalDocument,
+    clientEmail: z.union([z.string().email(), z.literal('')]).default(''),
+    clientAddress: z.string().trim().max(1000).default(''),
+    clientRepresentative: short.default(''),
+    serviceType: ServiceType.default('site_landing'),
+    valueCents: z.number().int().min(0).max(1e11),
+    upfrontCents: z.number().int().min(0).max(1e11).default(0),
+    installments: z.number().int().min(1).max(60).default(1),
+    paymentDay: z.number().int().min(1).max(28).default(10),
+    billing: z.enum(['project', 'monthly']),
+    status: z
+      .enum(['draft', 'sent', 'accepted', 'active', 'completed', 'cancelled'])
+      .default('draft'),
+    scope: text,
+    terms: text,
+    validUntil: optionalDate,
+  })
+  .refine((value) => value.upfrontCents <= value.valueCents, {
+    path: ['upfrontCents'],
+    message: 'A entrada não pode superar o valor da proposta.',
+  });
 export const InvoiceInput = z
   .object({
     title: short.min(3),
@@ -110,6 +124,7 @@ export const InvoiceInput = z
     paidAt: optionalDate,
     method: z.enum(['pix', 'boleto', 'transfer', 'card', 'other']).default('pix'),
     notes: text,
+    receipt: z.string().trim().max(2000).default(''),
   })
   .superRefine((v, c) => {
     if (v.status === 'paid' && !v.paidAt)
@@ -176,7 +191,7 @@ export const KnowledgeInput = z.object({
   title: short.min(3),
   content: z.string().trim().min(10).max(24000),
   category: short.default('Empresa'),
-  audience:z.enum(['public','internal']).default('public'),
+  audience: z.enum(['public', 'internal']).default('public'),
 });
 export const AssistantInput = z.object({
   title: short.min(2).default('Foundry'),

@@ -5,6 +5,7 @@ import {
   varchar,
   integer,
   boolean,
+  date,
   timestamp,
   bigint,
   index,
@@ -270,4 +271,122 @@ export const pipelineStageRevisions = pgTable('pipeline_stage_revisions', {
     .notNull()
     .references(() => users.id),
   savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const companySettings = pgTable('company_settings', {
+  singleton: boolean('singleton').primaryKey().default(true),
+  name: varchar('name', { length: 180 }).notNull(),
+  documentCiphertext: text('document_ciphertext').notNull(),
+  address: text('address').notNull(),
+  email: varchar('email', { length: 254 }).notNull(),
+  phone: varchar('phone', { length: 24 }).notNull(),
+  representative: varchar('representative', { length: 180 }).notNull(),
+  version: integer('version').notNull().default(1),
+  updatedBy: uuid('updated_by')
+    .notNull()
+    .references(() => users.id),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+const proposalFields = () => ({
+  title: varchar('title', { length: 180 }).notNull(),
+  client: varchar('client', { length: 180 }).notNull(),
+  leadId: uuid('lead_id').references(() => workspaceLeads.id),
+  clientDocumentCiphertext: text('client_document_ciphertext').notNull().default(''),
+  clientEmail: varchar('client_email', { length: 254 }).notNull().default(''),
+  clientAddress: text('client_address').notNull().default(''),
+  clientRepresentative: varchar('client_representative', { length: 180 }).notNull().default(''),
+  serviceType: varchar('service_type', { length: 32 }).notNull().default('site_landing'),
+  valueCents: bigint('value_cents', { mode: 'number' }).notNull(),
+  upfrontCents: bigint('upfront_cents', { mode: 'number' }).notNull().default(0),
+  installments: integer('installments').notNull().default(1),
+  paymentDay: integer('payment_day').notNull().default(10),
+  billing: varchar('billing', { length: 16 }).notNull(),
+  status: varchar('status', { length: 24 }).notNull().default('draft'),
+  scope: text('scope').notNull(),
+  terms: text('terms').notNull(),
+  validUntil: date('valid_until'),
+});
+export const agencyProposals = pgTable('agency_proposals', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
+  ...proposalFields(),
+  version: integer('version').notNull().default(1),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const agencyProposalVersions = pgTable('agency_proposals_versions', {
+  documentId: uuid('document_id')
+    .notNull()
+    .references(() => agencyProposals.id),
+  version: integer('version').notNull(),
+  ...proposalFields(),
+  actorId: uuid('actor_id')
+    .notNull()
+    .references(() => users.id),
+  savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const agencyServiceContracts = pgTable('service_contracts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
+  leadId: uuid('lead_id')
+    .notNull()
+    .references(() => workspaceLeads.id),
+  proposalId: uuid('proposal_id')
+    .notNull()
+    .references(() => agencyProposals.id),
+  proposalVersion: integer('proposal_version').notNull(),
+  title: varchar('title', { length: 180 }).notNull(),
+  serviceType: varchar('service_type', { length: 32 }).notNull(),
+  documentCiphertext: text('document_ciphertext').notNull(),
+  documentHash: varchar('document_hash', { length: 64 }).notNull(),
+  clientDocumentCiphertext: text('client_document_ciphertext').notNull(),
+  clientEmail: varchar('client_email', { length: 254 }).notNull(),
+  clientName: varchar('client_name', { length: 180 }).notNull(),
+  companyName: varchar('company_name', { length: 180 }).notNull(),
+  companyDocumentCiphertext: text('company_document_ciphertext').notNull(),
+  providerRepresentative: varchar('provider_representative', { length: 180 }).notNull(),
+  tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
+  tokenCiphertext: text('token_ciphertext').notNull(),
+  tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }).notNull(),
+  status: varchar('status', { length: 24 }).notNull().default('issued'),
+  valueCents: bigint('value_cents', { mode: 'number' }).notNull(),
+  billing: varchar('billing', { length: 16 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const serviceContractSignatures = pgTable('contract_signatures', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  contractId: uuid('contract_id')
+    .notNull()
+    .references(() => agencyServiceContracts.id),
+  party: varchar('party', { length: 16 }).notNull(),
+  signerName: varchar('signer_name', { length: 180 }).notNull(),
+  signerDocumentHash: varchar('signer_document_hash', { length: 64 }).notNull(),
+  ipAddress: varchar('ip_address', { length: 64 }).notNull(),
+  userAgent: varchar('user_agent', { length: 500 }).notNull(),
+  documentHash: varchar('document_hash', { length: 64 }).notNull(),
+  evidenceHash: varchar('evidence_hash', { length: 64 }).notNull(),
+  actorId: uuid('actor_id').references(() => users.id),
+  signedAt: timestamp('signed_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const serviceContractDeliveries = pgTable('contract_deliveries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  contractId: uuid('contract_id')
+    .notNull()
+    .references(() => agencyServiceContracts.id),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
+  channel: varchar('channel', { length: 16 }).notNull(),
+  recipient: varchar('recipient', { length: 254 }).notNull(),
+  status: varchar('status', { length: 24 }).notNull().default('queued'),
+  requestId: uuid('request_id').notNull().unique(),
+  waMessageId: uuid('wa_message_id').references(() => whatsappMessages.id),
+  attempts: integer('attempts').notNull().default(0),
+  nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

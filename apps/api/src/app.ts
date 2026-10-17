@@ -29,6 +29,9 @@ import type { WhatsAppTransport } from './whatsapp-runtime.js';
 import { registerFoundryRoutes } from './foundry-routes.js';
 import type { FoundryGenerate } from './foundry-engine.js';
 import { registerPipelineRoutes } from './pipeline-routes.js';
+import { registerCompanySettings } from './company-settings.js';
+import { registerServiceContractRoutes } from './service-contract-routes.js';
+import type { ContractMailer } from './contract-delivery.js';
 
 export interface DemoUserRecord {
   id: string;
@@ -49,13 +52,18 @@ export async function buildApiServer(
     testDatabase?: DatabaseConnectionResult;
     whatsappTransport?: WhatsAppTransport;
     foundryGenerate?: FoundryGenerate;
+    contractMailer?: ContractMailer;
   } = {},
 ): Promise<{
   app: FastifyInstance;
   auditService: ImmutableAuditService;
   whatsapp: Awaited<ReturnType<typeof registerWhatsAppRoutes>>;
 }> {
-  const app = Fastify({ logger: false });
+  const app = Fastify({
+    logger: false,
+    trustProxy:
+      process.env.CRM_TRUST_PROXY === '1' ? (_address: string, hop: number) => hop < 1 : false,
+  });
   const auditService = new ImmutableAuditService();
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof WorkspaceError)
@@ -115,6 +123,8 @@ export async function buildApiServer(
   const whatsapp = await registerWhatsAppRoutes(app, database, options.whatsappTransport);
   await registerFoundryRoutes(app, database, whatsapp, options.foundryGenerate);
   await registerPipelineRoutes(app, database);
+  await registerCompanySettings(app, database);
+  await registerServiceContractRoutes(app, database, whatsapp, options.contractMailer);
   app.addHook('onClose', async () => {
     if (connection) await (await connection).pool.end();
   });

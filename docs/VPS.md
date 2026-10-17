@@ -44,6 +44,14 @@ A migration `0009_pipeline_lead_files.sql` amplia o funil preservando as etapas 
 
 No computador, arraste o card; no celular, abra a ficha e escolha a etapa. A ficha também aceita até 15 tags e anexos de até 16 MB. Arquivar não exclui documentos nem tags. Restaurar preserva os vínculos. O arquivamento pausa a Foundry; retome-a explicitamente quando necessário. Os anexos ficam no mesmo `crm_uploads`, com hash SHA-256 e leitura autenticada por lead. Não há variável nova neste item.
 
+### Propostas e contratos de serviços — item 5
+
+A migration `0010_agency_service_contracts.sql` migra as propostas para tabelas próprias com versões. Em **Configurações**, cadastre nome, documento (CPF ou CNPJ numérico/alfanumérico válido), endereço, e-mail, telefone e representante. Os documentos são criptografados com `ENCRYPTION_MASTER_KEY_HEX`; preserve essa chave junto ao backup. Não existe exigência de CNPJ nem emissão obrigatória de nota fiscal. Cobranças possuem somente recibo opcional.
+
+Em **Propostas & contratos**, preencha o cliente, seu documento e endereço, escopo, tipo de serviço, valor e pagamento. Após o aceite da proposta, gere um dos quatro modelos de prestação de serviços. Valor e parcelamento vêm da versão aceita. Revise o documento marcado **modelo, revisar com advogado**, antes de compartilhar. Alterações comerciais exigem uma nova versão da proposta e outro contrato; o texto de um contrato emitido é imutável.
+
+O link público dura sete dias e pode ser renovado por um usuário autorizado. A assinatura registra consentimento, nome, hash do documento, hash de evidência, IP e horário. Ambas as partes assinam separadamente. Esse mecanismo não certifica uma identidade civil. Configure `API_URL` com a origem HTTPS pública e `CRM_TRUST_PROXY=1` somente quando a API estiver atrás do único proxy Caddy previsto no Compose. Para e-mail, configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` e `SMTP_FROM`. Porta 465 usa TLS implícito; demais portas exigem STARTTLS. A fila registra aceitação pelo SMTP separada de leitura/entrega. O envio por WhatsApp exige sessão pareada e contato no escopo. Os botões de envio exigem ação explícita do operador.
+
 Requisitos: Node.js 22 atualizado, Corepack/pnpm 10.6, Docker com Compose e um domínio apontado para o servidor. Esta revisão não executa deploy no VPS.
 
 ## O que inicia limpo

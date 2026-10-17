@@ -39,6 +39,15 @@ const BlogStudio = lazy(() =>
     default: m.BlogStudio,
   })),
 );
+const CompanySettings = lazy(() =>
+  import('./components/modules/CompanySettings.js').then((m) => ({ default: m.CompanySettings })),
+);
+const ServiceContracts = lazy(() =>
+  import('./components/modules/ServiceContracts.js').then((m) => ({ default: m.ServiceContracts })),
+);
+const ContractSignaturePage = lazy(() =>
+  import('./pages/ContractSignaturePage.js').then((m) => ({ default: m.ContractSignaturePage })),
+);
 const RecordsModule = lazy(() =>
   import('./components/modules/RecordsModule.js').then((m) => ({
     default: m.RecordsModule,
@@ -133,6 +142,12 @@ export function App() {
     window.addEventListener('keydown', keyboard);
     return () => window.removeEventListener('keydown', keyboard);
   }, [busy]);
+  if (window.location.pathname.startsWith('/assinar/'))
+    return (
+      <Suspense fallback={<p>Carregando documento…</p>}>
+        <ContractSignaturePage token={window.location.pathname.split('/')[2] ?? ''} />
+      </Suspense>
+    );
   if (!user) return <LoginPage onAuthenticated={setUser} />;
   const navigate = (next: WorkspacePage) => {
     if (next === page || !canNavigate(user, next)) return;
@@ -431,9 +446,8 @@ export function App() {
                   </div>
                 )}
                 {page === 'blog' && <BlogStudio user={user} />}
-                {page === 'contracts' && (
-                  <RecordsModule kind="contract" user={user} leads={workspace.leads} />
-                )}
+                {page === 'contracts' && <ServiceContracts user={user} leads={workspace.leads} />}
+                {page === 'settings' && <CompanySettings user={user} />}
                 {page === 'finance' && (
                   <RecordsModule kind="invoice" user={user} leads={workspace.leads} />
                 )}
